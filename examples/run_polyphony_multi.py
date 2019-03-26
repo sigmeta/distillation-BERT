@@ -150,22 +150,21 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
         input_mask = [1] * len(input_ids)
+        # [CLS] + [tokens] + [SEP] + [padding]
+        label_ids = [-1] + [label_map[l] for l in example.label[:(max_seq_length - 2)]] + [-1]
 
         # Zero-pad up to the sequence length.
-        padding = [0] * (max_seq_length - len(input_ids))
-        # label padding, -1 will be ignored when calculate loss
-        padding_label = [-1] * (max_seq_length - len(input_ids))
-        input_ids += padding
-        input_mask += padding
+        while len(input_ids) < max_seq_length:
+            input_ids.append(0)
+            input_mask.append(0)
+            label_ids.append(-1)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
+        assert len(label_ids) == max_seq_length
 
         label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
-
-        # [CLS] + [tokens] + [SEP] + [padding]
-        label_ids = [-1]+[label_map[l] for l in example.label[:(max_seq_length - 2)]]+[-1] + padding_label
 
         char=example.char
 
