@@ -163,14 +163,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
-        # training examples
-        if example.position<0:
-            # [CLS] + [tokens] + [SEP] + [padding]
-            label_ids = [-1]+[label_map[l] for l in example.label]+[-1] + padding_label
-        # testing examples
-        else:
-            label_ids=[-1]*max_seq_length
-            label_ids[label_pos] = label_ids[0]
+
+        # [CLS] + [tokens] + [SEP] + [padding]
+        label_ids = [-1]+[label_map[l] for l in example.label]+[-1] + padding_label
+
         char=example.char
 
         if ex_index < 5:
@@ -197,9 +193,15 @@ def accuracy(out, labels):
     outputs = np.argmax(out, axis=1)
     return np.sum(outputs == labels)
 
-def accuracy_list(out, labels):
-    outputs = np.argmax(out, axis=1)
-    return np.array(outputs == labels).tolist()
+def accuracy_list(out, labels, postions):
+    outputs = np.argmax(out, axis=2)
+    res=[]
+    for i,p in enumerate(postions):
+        if outputs[i,p]==labels[i,p]:
+            res.append(1)
+        else:
+            res.append(0)
+    return res
 
 def main():
     parser = argparse.ArgumentParser()
@@ -499,7 +501,7 @@ def main():
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
-            res_list+=accuracy_list(logits, label_ids)
+            res_list+=accuracy_list(logits, label_ids, label_poss)
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
