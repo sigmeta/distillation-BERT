@@ -165,7 +165,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert label_pos < max_seq_length
 
         # [CLS] + [tokens] + [SEP] + [padding]
-        label_ids = [-1]+[label_map[l] for l in example.label]+[-1] + padding_label
+        label_ids = [-1]+[label_map[l] for l in example.label[:(max_seq_length - 2)]]+[-1] + padding_label
 
         char=example.char
 
