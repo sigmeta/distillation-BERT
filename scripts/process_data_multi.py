@@ -7,7 +7,7 @@ import re
 
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
-      '-','———',':','：','!','@','#','$','%','&',';','……','；','—',' ','±'}
+      '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="../data/zh-CN/"
 phones=set()
 train=[]
@@ -27,7 +27,7 @@ for word in test_list:
     dct[word]=cases[0].getAttribute('pron_polyword')
     for case in cases:
         js_data={}
-        js_data['text']=case.getElementsByTagName("input")[0].childNodes[0].data
+        js_data['text']=case.getElementsByTagName("input")[0].childNodes[0].data.replace(' ','')
         js_data['position'] = -1
         js_data['char']=case.getAttribute('pron_polyword')
         for i, w in enumerate(js_data['text']):
@@ -44,6 +44,7 @@ for word in test_list:
         js_data['phone'][js_data['position']] = case.getElementsByTagName("part")[0].childNodes[0].data
         phones.add(js_data['phone'][0])
         words.add(js_data['char'])
+        assert ' ' not in js_data['text']
         test.append(js_data)
 
 
@@ -59,7 +60,9 @@ def get_train(path):
         js_data['char'] = char
         js_data['phone']=[]
         for w in si.getElementsByTagName("w"):
-            if w.getAttribute('v') in stop:
+            if w.getAttribute('v')==' ':
+                continue
+            elif w.getAttribute('v') in stop:
                 js_data['text']+=w.getAttribute('v')[0]
                 js_data['phone'] += ['_']
             elif len(w.getAttribute('v')) != len(re.split('[-&]',w.getAttribute('p'))):
@@ -76,6 +79,7 @@ def get_train(path):
         if len(js_data['text'])!=len(js_data['phone']):
             print(js_data['text'])
             print(js_data['phone'])
+        assert ' ' not in js_data['text']
         for p in js_data['phone']:
             phones.add(p)
 
