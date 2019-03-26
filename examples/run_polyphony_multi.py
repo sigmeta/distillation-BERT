@@ -120,9 +120,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     features = []
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text)
+        label_ids = [label_map[l] for l in example.label]
+        assert len(tokens_a)==len(label_ids)
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
             tokens_a = tokens_a[:(max_seq_length - 2)]
+            label_ids = label_ids[:(max_seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -150,8 +153,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
         input_mask = [1] * len(input_ids)
-        # [CLS] + [tokens] + [SEP] + [padding]
-        label_ids = [-1] + [label_map[l] for l in example.label[:(max_seq_length - 2)]] + [-1]
+        # [CLS] + [tokens] + [SEP]
+        label_ids = [-1] + label_ids + [-1]
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
