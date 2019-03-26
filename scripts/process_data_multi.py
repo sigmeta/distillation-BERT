@@ -60,7 +60,7 @@ def get_train(path):
         js_data['char'] = char
         js_data['phone']=[]
         for w in si.getElementsByTagName("w"):
-            if w.getAttribute('v')==' ':
+            if re.search('\s',w.getAttribute('v')):
                 continue
             elif w.getAttribute('v') in stop:
                 js_data['text']+=w.getAttribute('v')[0]
@@ -79,7 +79,8 @@ def get_train(path):
         if len(js_data['text'])!=len(js_data['phone']):
             print(js_data['text'])
             print(js_data['phone'])
-        assert ' ' not in js_data['text']
+        if re.search('\s',js_data['text']):
+            print(js_data['text'])
         for p in js_data['phone']:
             phones.add(p)
 
