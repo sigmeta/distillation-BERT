@@ -120,7 +120,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     features = []
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text)
-        assert len(tokens_a)==len(example.text)
+        if len(tokens_a)!=len(example.text):
+            print(tokens_a)
+            print(example.text)
+            for ii in range(len(tokens_a)):
+                if tokens_a[ii]!=example.text[ii]:
+                    print(ii,tokens_a[ii])
+                    break
         label_ids = [label_map[l] for l in example.label]
         assert len(tokens_a)==len(label_ids)
         # Account for [CLS] and [SEP] with "- 2"
