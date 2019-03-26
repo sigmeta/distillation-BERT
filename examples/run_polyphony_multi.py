@@ -176,8 +176,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                     [str(x) for x in tokens]))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("label: %s (id = %d)" % (example.label, label_ids))
-            logger.info("label position: %s" % (label_pos))
+            logger.info("label: %s (id = %s)" % (str(example.label), str(label_ids)))
+            logger.info("label position: %s" % (str(label_pos)))
             logger.info("character: %s" % (char))
 
         features.append(
