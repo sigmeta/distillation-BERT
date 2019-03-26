@@ -14,3 +14,7 @@ collection = DOMTree.documentElement
 cases=collection.getElementsByTagName("case")
 print(cases[0].getElementsByTagName("part")[0].childNodes[0].data)
 
+DOMTree = xml.dom.minidom.parse(data_path+"Annotation/dang/trainingScript/training.News.xml")
+collection = DOMTree.documentElement
+sis = collection.getElementsByTagName("si")
+print(sis[0].childNodes[1].childNodes[0].data)
