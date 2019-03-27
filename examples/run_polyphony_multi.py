@@ -170,11 +170,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert len(label_ids) == max_seq_length
 
         label_pos = example.position + 1  # First token is [cls]
+        assert label_pos < max_seq_length
         if label_pos>0 and tokens[label_pos]!=example.label[0][0]:
             for i,c in enumerate(tokens):
                 if c==example.label[0][0]:
                     label_pos=i
-        assert label_pos < max_seq_length
 
         char=example.char
 
