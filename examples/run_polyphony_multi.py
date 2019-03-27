@@ -153,11 +153,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         input_mask = [1] * len(input_ids)
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
-        n=0
-        for i in range(len(tokens)):
+        n=0;i=0
+        while i<len(tokens) and n<len(example.label):
             if tokens[i]==example.label[n][0]:
                 label_ids[i]=label_map[example.label[n][1]]
                 n+=1
+            i += 1
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
