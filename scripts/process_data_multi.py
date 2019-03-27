@@ -40,14 +40,13 @@ for word in test_list:
             js_data['position'] = max_length_cut
         assert js_data['position'] != -1
         assert js_data['text'][js_data['position']]==case.getAttribute('pron_polyword')
-        js_data['phone']=['_']*len(js_data['text'])
-        js_data['phone'][js_data['position']] = case.getElementsByTagName("part")[0].childNodes[0].data
-        phones.add(js_data['phone'][0])
+        js_data['phone'] = [(js_data['char'],js_data['char']+case.getElementsByTagName("part")[0].childNodes[0].data)]
+        phones.add(js_data['phone'][0][1])
         words.add(js_data['char'])
-        assert ' ' not in js_data['text']
+        #assert ' ' not in js_data['text']
         test.append(js_data)
 
-
+print(len(phones),sorted(list(phones)))
 def get_train(path):
     DOMTree = xml.dom.minidom.parse(path)
     char = '_'
@@ -59,30 +58,30 @@ def get_train(path):
         js_data['position'] = -1
         js_data['char'] = char
         js_data['phone']=[]
+        phones_list=[]
         for w in si.getElementsByTagName("w"):
             if re.search('\s',w.getAttribute('v')):
                 continue
-            elif w.getAttribute('v') in stop:
-                js_data['text']+=w.getAttribute('v')[0]
-                js_data['phone'] += ['_']
             elif len(w.getAttribute('v')) != len(re.split('[-&]',w.getAttribute('p'))):
-                js_data['text'] += w.getAttribute('v')[0]
-                js_data['phone'] += ['_']
-            elif w.getAttribute('v') in words:
-                words_train.add(w.getAttribute('v'))
-                js_data['text'] += w.getAttribute('v')
-                js_data['phone'] += [w.getAttribute('p')]
+                #print(w.getAttribute('v'),re.split('[-&]',w.getAttribute('p')))
+                #min_len=min(len(w.getAttribute('v')),len(re.split('[-&]',w.getAttribute('p'))))
+                #js_data['text'] += w.getAttribute('v')[:min_len]
+                #phones_list += re.split('[-&]',w.getAttribute('p'))[:min_len]
+                js_data['text'] += "_"
+                phones_list += ["_"]
             else:
                 js_data['text'] += w.getAttribute('v')
-                #js_data['phone'] += [p.strip() for p in re.split('[-&]',w.getAttribute('p'))]
-                js_data['phone'] += ['_']*len(w.getAttribute('v'))
-        if len(js_data['text'])!=len(js_data['phone']):
-            print(js_data['text'])
-            print(js_data['phone'])
+                phones_list += [p.strip() for p in re.split('[-&]',w.getAttribute('p'))]
+        assert len(js_data['text'])==len(phones_list)
         if re.search('\s',js_data['text']):
             print(js_data['text'])
-        for p in js_data['phone']:
-            phones.add(p)
+        for i in range(len(phones_list)):
+            if js_data['text'][i] in words:
+                words_train.add(js_data['text'][i])
+                if js_data['text'][i]+phones_list[i] not in phones:
+                    print(js_data['text'][i],phones_list[i])
+                phones.add(js_data['text'][i]+phones_list[i])
+                js_data['phone'].append((js_data['text'][i],js_data['text'][i]+phones_list[i]))
 
         train.append(js_data)
         # cut long sentences
@@ -108,9 +107,10 @@ for word in train_list:
     print("Train set processing...", word)
     for file in os.listdir(data_path+"Annotation/"+word+"/trainingScript"):
         if file.split('.')[0]=="training":
+            print(file)
             get_train(data_path+"Annotation/"+word+"/trainingScript/"+file)
 
-phones.remove('_')
+#phones.remove('_')
 print(len(phones),sorted(list(phones)))
 print(words-words_train)
 print(len(train),len(test))

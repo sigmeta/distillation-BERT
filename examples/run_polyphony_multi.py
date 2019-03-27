@@ -120,19 +120,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     features = []
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text)
-        if len(tokens_a)!=len(example.text):
-            print(tokens_a)
-            print(example.text)
-            for ii in range(len(tokens_a)):
-                if tokens_a[ii]!=example.text[ii]:
-                    print(ii,tokens_a[ii])
-                    break
-        label_ids = [label_map[l] for l in example.label]
-        assert len(tokens_a)==len(label_ids)
+
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
             tokens_a = tokens_a[:(max_seq_length - 2)]
-            label_ids = label_ids[:(max_seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -161,19 +152,27 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # tokens are attended to.
         input_mask = [1] * len(input_ids)
         # [CLS] + [tokens] + [SEP]
-        label_ids = [-1] + label_ids + [-1]
+        label_ids = [-1] * max_seq_length
+        n=0
+        for i in range(len(tokens)):
+            if tokens[i]==example.label[n][0]:
+                label_ids[i]=label_map[example.label[n][1]]
+                n+=1
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
             input_mask.append(0)
-            label_ids.append(-1)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(label_ids) == max_seq_length
 
         label_pos = example.position + 1  # First token is [cls]
+        if label_pos>0 and tokens[label_pos]!=example.label[0][0]:
+            for i,c in enumerate(tokens):
+                if c==example.label[0][0]:
+                    label_pos=i
         assert label_pos < max_seq_length
 
         char=example.char
