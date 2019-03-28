@@ -449,7 +449,7 @@ def main():
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss, logit_masks = batch
-                loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks)
+                loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks=logit_masks)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
@@ -525,7 +525,7 @@ def main():
             logit_masks = logit_masks.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks)
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks=logit_masks)
                 logits = model(input_ids, input_mask, position=label_poss, logit_masks=logit_masks)
             #print(logits.size())
             logits = logits.detach().cpu().numpy()
