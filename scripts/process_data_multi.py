@@ -11,7 +11,9 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
 data_path="../data/zh-CN/"
 phones=set()
 train=[]
-test=[]
+test_story=[]
+test_news=[]
+test_chat=[]
 max_length_cut=80
 words=set()
 words_train=set()
@@ -19,32 +21,38 @@ test_list=[p[11:-4] for p in os.listdir(data_path+"TestCase/Story")]
 train_list=os.listdir(data_path+"Annotation")
 
 dct={}
-for word in test_list:
-    print("Test set processing...",word)
-    DOMTree = xml.dom.minidom.parse(data_path+"TestCase/Story/ChildStory_"+word+".xml")
-    collection = DOMTree.documentElement
-    cases=collection.getElementsByTagName("case")
-    dct[word]=cases[0].getAttribute('pron_polyword')
-    for case in cases:
-        js_data={}
-        js_data['text']=case.getElementsByTagName("input")[0].childNodes[0].data.replace(' ','')
-        js_data['position'] = -1
-        js_data['char']=case.getAttribute('pron_polyword')
-        for i, w in enumerate(js_data['text']):
-            if w == case.getAttribute('pron_polyword'):
-                js_data['position'] = i
-        # cut the text if too long
-        if js_data['position'] > max_length_cut:
-            #print(js_data['position'])
-            js_data['text'] = js_data['text'][js_data['position'] - max_length_cut:]
-            js_data['position'] = max_length_cut
-        assert js_data['position'] != -1
-        assert js_data['text'][js_data['position']]==case.getAttribute('pron_polyword')
-        js_data['phone'] = [(js_data['char'],js_data['char']+case.getElementsByTagName("part")[0].childNodes[0].data)]
-        phones.add(js_data['phone'][0][1])
-        words.add(js_data['char'])
-        #assert ' ' not in js_data['text']
-        test.append(js_data)
+def get_test(path,test):
+    for word in os.listdir(path):
+        print("Test set processing...", word)
+        DOMTree = xml.dom.minidom.parse(path+word)
+        collection = DOMTree.documentElement
+        cases = collection.getElementsByTagName("case")
+        dct[word] = cases[0].getAttribute('pron_polyword')
+        for case in cases:
+            js_data = {}
+            js_data['text'] = case.getElementsByTagName("input")[0].childNodes[0].data.replace(' ', '')
+            js_data['position'] = -1
+            js_data['char'] = case.getAttribute('pron_polyword')
+            for i, w in enumerate(js_data['text']):
+                if w == case.getAttribute('pron_polyword'):
+                    js_data['position'] = i
+            # cut the text if too long
+            if js_data['position'] > max_length_cut:
+                # print(js_data['position'])
+                js_data['text'] = js_data['text'][js_data['position'] - max_length_cut:]
+                js_data['position'] = max_length_cut
+            assert js_data['position'] != -1
+            assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
+            js_data['phone'] = [
+                (js_data['char'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data)]
+            phones.add(js_data['phone'][0][1])
+            words.add(js_data['char'])
+            # assert ' ' not in js_data['text']
+            test.append(js_data)
+
+get_test(data_path+'TestCase/Story/',test_story)
+get_test(data_path+'TestCase/News/',test_news)
+get_test(data_path+'TestCase/ChitChat/',test_chat)
 
 print(len(phones),sorted(list(phones)))
 def get_train(path):
@@ -63,12 +71,12 @@ def get_train(path):
             if re.search('\s',w.getAttribute('v')):
                 continue
             elif len(w.getAttribute('v')) != len(re.split('[-&]',w.getAttribute('p'))):
-                #print(w.getAttribute('v'),re.split('[-&]',w.getAttribute('p')))
+                print(w.getAttribute('v'),re.split('[-&]',w.getAttribute('p')))
                 #min_len=min(len(w.getAttribute('v')),len(re.split('[-&]',w.getAttribute('p'))))
-                #js_data['text'] += w.getAttribute('v')[:min_len]
+                js_data['text'] += w.getAttribute('v')
                 #phones_list += re.split('[-&]',w.getAttribute('p'))[:min_len]
-                js_data['text'] += "_"
-                phones_list += ["_"]
+                #js_data['text'] += "_"
+                phones_list += ["_"]*len(w.getAttribute('v'))
             else:
                 js_data['text'] += w.getAttribute('v')
                 phones_list += [p.strip() for p in re.split('[-&]',w.getAttribute('p'))]
@@ -79,9 +87,11 @@ def get_train(path):
             if js_data['text'][i] in words:
                 words_train.add(js_data['text'][i])
                 if js_data['text'][i]+phones_list[i] not in phones:
-                    print(js_data['text'][i],phones_list[i])
-                phones.add(js_data['text'][i]+phones_list[i])
-                js_data['phone'].append((js_data['text'][i],js_data['text'][i]+phones_list[i]))
+                    #print(js_data['text'][i],phones_list[i])
+                    js_data['phone'].append((js_data['text'][i], '_'))
+                else:
+                    #phones.add(js_data['text'][i]+phones_list[i])
+                    js_data['phone'].append((js_data['text'][i],js_data['text'][i]+phones_list[i]))
 
         train.append(js_data)
         # cut long sentences
@@ -113,12 +123,18 @@ for word in train_list:
 #phones.remove('_')
 print(len(phones),sorted(list(phones)))
 print(words-words_train)
-print(len(train),len(test))
+print(len(train),len(test_story),len(test_news),len(test_chat))
 #save
 with open("../data/train.json",'w',encoding='utf8') as f:
     f.write(json.dumps(train))
-with open("../data/test.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(test))
+
+with open("../data/test_story.json",'w',encoding='utf8') as f:
+    f.write(json.dumps(test_story))
+with open("../data/test_news.json",'w',encoding='utf8') as f:
+    f.write(json.dumps(test_news))
+with open("../data/test_chat.json",'w',encoding='utf8') as f:
+    f.write(json.dumps(test_chat))
+
 info={"words":test_list,"words_train":sorted(list(words_train)),"phones":sorted(list(phones))}
 with open("../data/info.json",'w',encoding='utf8') as f:
     f.write(json.dumps(info))

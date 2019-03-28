@@ -65,12 +65,13 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, label_ids, label_pos, char):
+    def __init__(self, input_ids, input_mask, label_ids, label_pos, char, logit_mask):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.label_id = label_ids
         self.label_pos = label_pos
         self.char = char
+        self.logit_mask = logit_mask
 
 
 class DataProcessor(object):
@@ -119,6 +120,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
     label_map = {label : i for i, label in enumerate(label_list)}
     label_map['_']=-1
+    label_word={label[0]:[] for label in label_list}
+    for label in label_list:
+        label_word[label[0]].append(label_map[label])
+    logit_mask=[[0 for j in range(len(label_map))] for i in range(max_seq_length)]
 
     features = []
     for (ex_index, example) in enumerate(examples):
@@ -160,6 +165,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         while i<len(tokens) and n<len(example.label):
             if tokens[i]==example.label[n][0]:
                 label_ids[i]=label_map[example.label[n][1]]
+                if example.label[n][1]!='_':
+                    for j in label_word[tokens[i]]:
+                        logit_mask[i][j]=1
                 n+=1
             i += 1
 
@@ -174,6 +182,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
+        # test
         if label_pos>0 and tokens[label_pos]!=example.label[0][0]:
             for i,c in enumerate(tokens):
                 if c==example.label[0][0]:
@@ -197,7 +206,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                               input_mask=input_mask,
                               label_ids=label_ids,
                               label_pos=label_pos,
-                              char=char))
+                              char=char,
+                              logit_mask=logit_mask))
     return features
 
 
@@ -424,7 +434,8 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in train_features], dtype=torch.long)
-        train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+        all_logit_masks = torch.tensor([f.logit_mask for f in train_features], dtype=torch.long)
+        train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
         else:
@@ -437,8 +448,8 @@ def main():
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, input_mask, label_ids, label_poss = batch
-                loss = model(input_ids, input_mask, label_ids, label_poss)
+                input_ids, input_mask, label_ids, label_poss, logit_masks = batch
+                loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
@@ -495,7 +506,8 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+        all_logit_masks = torch.tensor([f.logit_mask for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -505,15 +517,16 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list=[]
-        for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
+        for input_ids, input_mask, label_ids, label_poss, logit_masks in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
             label_ids = label_ids.to(device)
             label_poss = label_poss.to(device)
+            logit_masks = logit_masks.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss)
-                logits = model(input_ids, input_mask, position=label_poss)
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks)
+                logits = model(input_ids, input_mask, position=label_poss, logit_masks=logit_masks)
             #print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
