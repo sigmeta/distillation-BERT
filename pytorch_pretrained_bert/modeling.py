@@ -1177,7 +1177,8 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         output = self.dropout(sequence_output)
         logits = self.classifier(output)
         if logit_masks is not None:
-            assert logits.size()==logit_masks.size()
+            if logits.size()!=logit_masks.size():
+                print(logits.size(),logit_masks.size())
             logits=logits*logit_masks
 
         if labels is not None:
