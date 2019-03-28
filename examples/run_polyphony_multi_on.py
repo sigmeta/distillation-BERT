@@ -123,7 +123,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_word={label[0]:[] for label in label_list}
     for label in label_list:
         label_word[label[0]].append(label_map[label])
-    logit_mask=[[0 for j in range(len(label_map))] for i in range(max_seq_length)]
+    logit_mask=[[0 for j in range(len(label_map)-1)] for i in range(max_seq_length)]
 
     features = []
     for (ex_index, example) in enumerate(examples):
