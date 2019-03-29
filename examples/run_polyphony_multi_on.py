@@ -90,7 +90,7 @@ class DataProcessor(object):
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the dev set."""
         logger.info("LOOKING AT {}".format(os.path.join(data_dir, "test_"+self.test_set+".json")))
-        with open(os.path.join(data_dir, "test.json"), encoding='utf8') as f:
+        with open(os.path.join(data_dir,  "test_"+self.test_set+".json"), encoding='utf8') as f:
             test_list = json.loads(f.read())
         return self._create_examples(test_list)
 
@@ -123,7 +123,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_word={label[0]:[] for label in label_list}
     for label in label_list:
         label_word[label[0]].append(label_map[label])
-    logit_mask=torch.zeros(max_seq_length,len(label_map)-1)
+    logit_mask=np.zeros((max_seq_length,len(label_map)-1))
 
     features = []
     for (ex_index, example) in enumerate(examples):
@@ -166,11 +166,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             if tokens[i]==example.label[n][0]:
                 label_ids[i]=label_map[example.label[n][1]]
                 if example.label[n][1]!='_':
+                    logit_mask[i,:]=float('-inf')
                     for j in label_word[tokens[i]]:
-                        logit_mask[i][j]=1
+                        logit_mask[i,j]=1
                 n+=1
             i += 1
-
+        logit_mask=logit_mask.tolist()
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
@@ -183,7 +184,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
         # test
-        if label_pos>0 and tokens[label_pos]!=example.label[0][0]:
+        if label_pos>=len(tokens) or (label_pos>0 and tokens[label_pos]!=example.label[0][0]):
             for i,c in enumerate(tokens):
                 if c==example.label[0][0]:
                     label_pos=i
@@ -493,6 +494,13 @@ def main():
     model.to(device)
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+        output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        config = BertConfig(output_config_file)
+        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
+
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)

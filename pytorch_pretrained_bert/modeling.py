@@ -1176,10 +1176,8 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         output = self.dropout(sequence_output)
         logits = self.classifier(output)
-        if logit_masks is not None:
-            if logits.size()!=logit_masks.size():
-                print(logits.size(),logit_masks.size())
-            logits=logits*logit_masks
+        assert logits.size()==logit_masks.size()
+        logits=logits*logit_masks
 
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)
