@@ -1177,7 +1177,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         output = self.dropout(sequence_output)
         logits = self.classifier(output)
         assert logits.size()==logit_masks.size()
-        logits=logits*logit_masks
+        logits=logits.masked_fill(logit_masks,value=torch.tensor(float('-inf')))
 
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)

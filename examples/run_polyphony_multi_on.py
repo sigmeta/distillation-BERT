@@ -162,18 +162,17 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        logit_mask = np.zeros((max_seq_length, len(label_map) - 1))
+        logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).tolist()
         n=0;i=0
         while i<len(tokens) and n<len(example.label):
             if tokens[i]==example.label[n][0]:
                 label_ids[i]=label_map[example.label[n][1]]
                 if example.label[n][1]!='_':
-                    logit_mask[i,:]=float('-inf')
+                    logit_mask[i]=[1]*(len(label_map)-1)
                     for j in label_word[tokens[i]]:
-                        logit_mask[i,j]=1
+                        logit_mask[i][j]=0
                 n+=1
             i += 1
-        logit_mask=logit_mask.tolist()
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
