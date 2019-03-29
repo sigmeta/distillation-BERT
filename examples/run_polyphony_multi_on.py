@@ -436,7 +436,7 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in train_features], dtype=torch.long)
-        all_logit_masks = torch.tensor([f.logit_mask for f in train_features], dtype=torch.byte)
+        all_logit_masks = torch.tensor([f.logit_mask for f in train_features], dtype=torch.uint8)
         train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
@@ -515,7 +515,7 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
-        all_logit_masks = torch.tensor([f.logit_mask for f in eval_features], dtype=torch.byte)
+        all_logit_masks = torch.tensor([f.logit_mask for f in eval_features], dtype=torch.uint8)
         eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
