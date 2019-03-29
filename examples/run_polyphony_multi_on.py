@@ -123,7 +123,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_word={label[0]:[] for label in label_list}
     for label in label_list:
         label_word[label[0]].append(label_map[label])
-    logit_mask=np.zeros((max_seq_length,len(label_map)-1))
+
 
     features = []
     for (ex_index, example) in enumerate(examples):
@@ -161,6 +161,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         input_mask = [1] * len(input_ids)
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
+
+        logit_mask = np.zeros((max_seq_length, len(label_map) - 1))
         n=0;i=0
         while i<len(tokens) and n<len(example.label):
             if tokens[i]==example.label[n][0]:
