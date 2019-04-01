@@ -162,17 +162,19 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).astype(int).tolist()
+        logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).astype(int)
         n=0;i=0
         while i<len(tokens) and n<len(example.label):
             if tokens[i]==example.label[n][0]:
                 label_ids[i]=label_map[example.label[n][1]]
                 if example.label[n][1]!='_':
-                    logit_mask[i]=[1]*(len(label_map)-1)
+                    label_pos=i
+                    logit_mask[i]=1
                     for j in label_word[tokens[i]]:
-                        logit_mask[i][j]=0
+                        logit_mask[i,j]=0
                 n+=1
             i += 1
+        #logit_mask=logit_mask.tolist()
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
@@ -182,13 +184,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert len(input_mask) == max_seq_length
         assert len(label_ids) == max_seq_length
 
-        label_pos = example.position + 1  # First token is [cls]
+        #label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
         # test
-        if label_pos>=len(tokens) or (label_pos>0 and tokens[label_pos]!=example.label[0][0]):
-            for i,c in enumerate(tokens):
-                if c==example.label[0][0]:
-                    label_pos=i
 
         char=example.char
 
@@ -220,7 +218,11 @@ def accuracy(out, labels):
 def accuracy_list(out, labels, postions):
     outputs = np.argmax(out, axis=2)
     res=[]
+    #print(out)
+    #print(outputs)
     for i,p in enumerate(postions):
+        assert labels[i,p]!=-1
+        #print(outputs[i,p],labels[i,p])
         if outputs[i,p]==labels[i,p]:
             res.append(1)
         else:
@@ -271,7 +273,7 @@ def main():
                         type=int,
                         help="Total batch size for training.")
     parser.add_argument("--eval_batch_size",
-                        default=8,
+                        default=32,
                         type=int,
                         help="Total batch size for eval.")
     parser.add_argument("--learning_rate",
