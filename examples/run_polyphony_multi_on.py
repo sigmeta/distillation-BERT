@@ -127,7 +127,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
     features = []
     for (ex_index, example) in enumerate(examples):
-        tokens_a = tokenizer.tokenize(example.text)
+        if ex_index%10000==0:
+            print(ex_index)
+        tokens_a = example.text
 
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
@@ -163,30 +165,29 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_ids = [-1] * max_seq_length
 
         logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).astype(int)
-        n=0;i=0
-        while i<len(tokens) and n<len(example.label):
-            if tokens[i]==example.label[n][0]:
-                label_ids[i]=label_map[example.label[n][1]]
-                if example.label[n][1]!='_':
-                    label_pos=i
-                    logit_mask[i]=1
-                    for j in label_word[tokens[i]]:
-                        logit_mask[i,j]=0
-                n+=1
-            i += 1
+        
+        for i,l in example.label:
+            if i+1>=len(tokens):
+                print(i+1,len(tokens),tokens,example.text)
+            if tokens[i+1]!=l[0]:
+                print(tokens[i+1],l[0],tokens,example.text)
+            assert tokens[i+1]==l[0]
+            label_ids[i+1]=label_map[l]
+            logit_mask[i+1]=1
+            logit_mask[i+1,label_word[l[0]]]=0
         #logit_mask=logit_mask.tolist()
-        # Zero-pad up to the sequence length.
-        while len(input_ids) < max_seq_length:
-            input_ids.append(0)
-            input_mask.append(0)
 
+        # Zero-pad up to the sequence length.
+        padding = [0] * (max_seq_length - len(input_ids))
+        input_ids += padding
+        input_mask += padding
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(label_ids) == max_seq_length
 
-        #label_pos = example.position + 1  # First token is [cls]
+        label_pos = example.position + 1  # First token is [cls]
         assert label_pos < max_seq_length
-        # test
+        #assert tokens[label_pos]==example.label[-1][1][0]
 
         char=example.char
 
@@ -558,6 +559,7 @@ def main():
         for i,c in enumerate(chars):
             char_count[c].append(res_list[i])
         char_acc={k:sum(char_count[k])/len(char_count[k]) for k in char_count}
+
         result = {'eval_loss': eval_loss,
                   'eval_accuracy': eval_accuracy,
                   'global_step': global_step,
@@ -573,6 +575,9 @@ def main():
             for key in sorted(char_acc.keys()):
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
-
+        
+        output_acc_file = os.path.join(args.output_dir, args.test_set, ".json")
+        with open(output_acc_file,"w") as f:
+            f.write(json.dumps(char_acc,ensure_ascii=False))
 if __name__ == "__main__":
     main()
