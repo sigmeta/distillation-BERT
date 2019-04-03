@@ -175,7 +175,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             label_ids[i+1]=label_map[l]
             logit_mask[i+1]=1
             logit_mask[i+1,label_word[l[0]]]=0
-        #logit_mask=logit_mask.tolist()
+        logit_mask=logit_mask.unsqueeze(0)
 
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
@@ -439,7 +439,7 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in train_features], dtype=torch.long)
-        all_logit_masks = torch.cat([f.logit_mask.unsqueeze(0) for f in train_features], 0)
+        all_logit_masks = torch.cat([f.logit_mask for f in train_features], 0)
         train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
