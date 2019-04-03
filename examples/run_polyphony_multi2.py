@@ -65,13 +65,13 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, label_ids, label_pos, char, logit_mask):
+    def __init__(self, input_ids, input_mask, label_ids, label_pos, char):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.label_id = label_ids
         self.label_pos = label_pos
         self.char = char
-        self.logit_mask = logit_mask
+
 
 
 class DataProcessor(object):
@@ -164,19 +164,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        logit_mask = torch.zeros((max_seq_length, len(label_map) - 1),dtype=torch.uint8)
-        
-        for i,l in example.label:
-            if i+1>=len(tokens):
-                print(i+1,len(tokens),tokens,example.text)
-            if tokens[i+1]!=l[0]:
-                print(tokens[i+1],l[0],tokens,example.text)
-            assert tokens[i+1]==l[0]
-            label_ids[i+1]=label_map[l]
-            logit_mask[i+1]=1
-            logit_mask[i+1,label_word[l[0]]]=0
-        #logit_mask=logit_mask.tolist()
-
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
         input_ids += padding
@@ -207,8 +194,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                               input_mask=input_mask,
                               label_ids=label_ids,
                               label_pos=label_pos,
-                              char=char,
-                              logit_mask=logit_mask))
+                              char=char))
     return features
 
 
@@ -439,8 +425,8 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in train_features], dtype=torch.long)
-        all_logit_masks = torch.cat([f.logit_mask.unsqueeze(0) for f in train_features], 0)
-        train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
+
+        train_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
         else:
@@ -453,8 +439,8 @@ def main():
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, input_mask, label_ids, label_poss, logit_masks = batch
-                loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks=logit_masks)
+                input_ids, input_mask, label_ids, label_poss = batch
+                loss = model(input_ids, input_mask, label_ids, label_poss)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
@@ -518,8 +504,7 @@ def main():
         all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
         all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
         all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
-        all_logit_masks = torch.cat([f.logit_mask.unsqueeze(0) for f in eval_features], 0)
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_logit_masks)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -529,16 +514,15 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list=[]
-        for input_ids, input_mask, label_ids, label_poss, logit_masks in tqdm(eval_dataloader, desc="Evaluating"):
+        for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
             label_ids = label_ids.to(device)
             label_poss = label_poss.to(device)
-            logit_masks = logit_masks.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss, logit_masks=logit_masks)
-                logits = model(input_ids, input_mask, position=label_poss, logit_masks=logit_masks)
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss)
+                logits = model(input_ids, input_mask, position=label_poss)
             #print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
