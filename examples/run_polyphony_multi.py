@@ -444,7 +444,7 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -475,6 +475,68 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
+
+            if args.eval_every_epoch:
+                # evaluate for every epoch
+                eval_examples = processor.get_dev_examples(args.data_dir)
+                eval_features, masks = convert_examples_to_features(
+                    eval_examples, label_list, args.max_seq_length, tokenizer)
+                if args.no_logit_mask:
+                    print("Remove logit mask")
+                    masks = None
+
+                chars = [f.char for f in eval_features]
+                print(len(set(chars)), sorted(list(set(chars))))
+                logger.info("***** Running evaluation *****")
+                logger.info("  Num examples = %d", len(eval_examples))
+                logger.info("  Batch size = %d", args.eval_batch_size)
+                all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+                all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+                all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+                all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
+                eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+                # Run prediction for full data
+                eval_sampler = SequentialSampler(eval_data)
+                eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+                model.eval()
+                eval_loss, eval_accuracy = 0, 0
+                nb_eval_steps, nb_eval_examples = 0, 0
+
+                res_list = []
+                for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
+                    with torch.no_grad():
+                        tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
+                        logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                    # print(logits.size())
+                    logits = logits.detach().cpu().numpy()
+                    label_ids = label_ids.to('cpu').numpy()
+                    res_list += accuracy_list(logits, label_ids, label_poss)
+                    eval_loss += tmp_eval_loss.mean().item()
+
+                    nb_eval_examples += input_ids.size(0)
+                    nb_eval_steps += 1
+
+                eval_loss = eval_loss / nb_eval_steps
+                loss = tr_loss / nb_tr_steps if args.do_train else None
+                acc = sum(res_list) / len(res_list)
+                char_count = {k: [] for k in list(set(chars))}
+                for i, c in enumerate(chars):
+                    char_count[c].append(res_list[i])
+                char_acc = {k: sum(char_count[k]) / len(char_count[k]) for k in char_count}
+
+                result = {'epoch':ep+1,
+                          'eval_loss': eval_loss,
+                          'eval_accuracy': acc,
+                          'global_step': global_step,
+                          'loss': loss}
+                logger.info("***** Eval results *****")
+                for key in sorted(result.keys()):
+                    logger.info("  %s = %s", key, str(result[key]))
+                output_eval_file = os.path.join(args.output_dir, "epoch_"+str(ep+1)+".txt")
+                with open(output_eval_file) as f:
+                    f.write(json.dumps(result)+'\n'+json.dumps(char_acc))
+
 
     if args.do_train:
         # Save a trained model and the associated configuration
