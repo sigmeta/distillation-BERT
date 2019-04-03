@@ -164,7 +164,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).astype(int)
+        logit_mask = np.zeros((max_seq_length, len(label_map) - 1)).astype(np.uint8)
         
         for i,l in example.label:
             if i+1>=len(tokens):

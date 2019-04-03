@@ -17,30 +17,25 @@ test_chat=[]
 max_length_cut=80
 words=set()
 words_train=set()
-test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
-train_set=set(os.listdir(data_path+"Annotation"))
-ime_set=test_set-train_set
-
-assert not train_set-test_set
+test_list=[p[11:-4] for p in os.listdir(data_path+"TestCase/Story")]
+train_list=os.listdir(data_path+"Annotation")
 
 dct={}
-
-
 def get_test(path,test):
     for word in os.listdir(path):
         print("Test set processing...", word)
         DOMTree = xml.dom.minidom.parse(path+word)
         collection = DOMTree.documentElement
         cases = collection.getElementsByTagName("case")
-        dct[re.search('_.*\.',word).group()[1:-1]] = cases[0].getAttribute('pron_polyword')
+        dct[word] = cases[0].getAttribute('pron_polyword')
         for case in cases:
             js_data = {}
-            js_data['text'] = re.sub('\s','',case.getElementsByTagName("input")[0].childNodes[0].data)
+            js_data['text'] = case.getElementsByTagName("input")[0].childNodes[0].data.replace(' ', '')
             js_data['position'] = -1
             js_data['char'] = case.getAttribute('pron_polyword')
-            for i,w in enumerate(js_data['text']):
-                if w==js_data['char']:
-                    js_data['position']=i
+            for i, w in enumerate(js_data['text']):
+                if w == case.getAttribute('pron_polyword'):
+                    js_data['position'] = i
             # cut the text if too long
             if js_data['position'] > max_length_cut:
                 # print(js_data['position'])
@@ -48,17 +43,21 @@ def get_test(path,test):
                 js_data['position'] = max_length_cut
             assert js_data['position'] != -1
             assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
-            js_data['phone'] = [[js_data['position'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data]]
-            phones.add(js_data['phone'][-1][1])
+            js_data['phone'] = [
+                (js_data['char'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data)]
+            phones.add(js_data['phone'][0][1])
             words.add(js_data['char'])
-            js_data['text']=' '.join(js_data['text'])
+            # assert ' ' not in js_data['text']
             test.append(js_data)
 
+get_test(data_path+'TestCase/Story/',test_story)
+get_test(data_path+'TestCase/News/',test_news)
+get_test(data_path+'TestCase/ChitChat/',test_chat)
 
-def get_train(path, word):
+print(len(phones),sorted(list(phones)))
+def get_train(path):
     DOMTree = xml.dom.minidom.parse(path)
-    char = dct[word]
-    words_train.add(char)
+    char = '_'
     collection = DOMTree.documentElement
     sis = collection.getElementsByTagName("si")
     for si in sis:
@@ -66,115 +65,76 @@ def get_train(path, word):
         js_data['text'] = ""
         js_data['position'] = -1
         js_data['char'] = char
-        pho='_'
-
-        # sentences are already cut, find the sentence with polyphony word
-        sents=si.getElementsByTagName('sent')
-        s=None
-        for sent in sents:
-            if char in sent.getElementsByTagName('text')[0].childNodes[0].data:
-                s=sent
-                break
-        if s==None:
-            print("no polyphony word")
-            continue
-        js_data['text'] = re.sub('\s', '', s.getElementsByTagName('text')[0].childNodes[0].data)
-        # get the pronunciation
-        for i,w in enumerate(s.getElementsByTagName("w")):
-            if w.getAttribute('v') == char:
-                pho=js_data['char'] + w.getAttribute('p')
-        if pho=='_': # wrong case
+        js_data['phone']=[]
+        phones_list=[]
+        for w in si.getElementsByTagName("w"):
+            if re.search('\s',w.getAttribute('v')):
+                continue
+            elif len(w.getAttribute('v')) != len(re.split('[-&]',w.getAttribute('p'))):
+                print(w.getAttribute('v'),re.split('[-&]',w.getAttribute('p')))
+                #min_len=min(len(w.getAttribute('v')),len(re.split('[-&]',w.getAttribute('p'))))
+                js_data['text'] += w.getAttribute('v')
+                #phones_list += re.split('[-&]',w.getAttribute('p'))[:min_len]
+                #js_data['text'] += "_"
+                phones_list += ["_"]*len(w.getAttribute('v'))
+            else:
+                js_data['text'] += w.getAttribute('v')
+                phones_list += [p.strip() for p in re.split('[-&]',w.getAttribute('p'))]
+        assert len(js_data['text'])==len(phones_list)
+        if re.search('\s',js_data['text']):
             print(js_data['text'])
-            continue
-        # get the position
-        for i,w in enumerate(js_data['text']):
-            if w==char:
-                js_data['position']=i
-        # cut the text if too long
-        if js_data['position'] > max_length_cut:
-            js_data['text'] = js_data['text'][js_data['position'] - max_length_cut:]
-            js_data['position'] = max_length_cut
-        js_data['phone'] = [[js_data['position'], pho]]
-        assert js_data['position'] > -1
-        assert js_data['text'][js_data['position']] == char
+        for i in range(len(phones_list)):
+            if js_data['text'][i] in words:
+                words_train.add(js_data['text'][i])
+                if js_data['text'][i]+phones_list[i] not in phones:
+                    #print(js_data['text'][i],phones_list[i])
+                    js_data['phone'].append((js_data['text'][i], '_'))
+                else:
+                    #phones.add(js_data['text'][i]+phones_list[i])
+                    js_data['phone'].append((js_data['text'][i],js_data['text'][i]+phones_list[i]))
 
-        phones.add(js_data['phone'][-1][1])
-        js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
-
-def get_train_ime(path,ime_words,ime_len=1200000):
-    with open(path,encoding='utf8') as f:
-        for i,line in enumerate(f):
-            if i%100000==0:
-                print(i)
-            if i>=ime_len:
-                break
-            if i%4 == 0:
-                js_data = {}
-                js_data['text'] = line.strip()
-                js_data['position'] = -1
-                js_data['char'] = '_'
-                js_data['phone'] = []
-            if i%4==1:
-                phones_list=line.strip().split('\t')
-                texts_list=js_data['text'].split('\t')
-                assert len(phones_list)==len(texts_list)
-                for j in range(len(texts_list)):
-                    if texts_list[j] in ime_words:
-                        words_train.add(texts_list[j])
-                        js_data['phone'].append([j,texts_list[j]+phones_list[j]])
-                        phones.add(texts_list[j]+phones_list[j])
-            if i%4==2:
+        # cut long sentences
+        '''
+        else:
+            texts_list = js_data['text'].split('。')
+            if len(texts_list[-1]) < 2:
+                texts_list = texts_list[:-1]
+            phones_list=[]
+            n=0
+            for t in texts_list:
+                phones_list.append(js_data['phone'][n:n+len(t)])
+                n+=len(t)
+            print(texts_list)
+            print(phones_list)
+            for i in range(len(texts_list)):
+                js_data['text']=texts_list[i]
+                js_data['phone']=phones_list[i]
                 train.append(js_data)
+        '''
 
-
-# test
-get_test(data_path+'TestCase/Story/',test_story)
-get_test(data_path+'TestCase/News/',test_news)
-get_test(data_path+'TestCase/ChitChat/',test_chat)
-print(dct)
-ime_words={dct[w] for w in ime_set}
-
-print(len(phones),sorted(list(phones)))
-phones_test=phones.copy()
-
-# train
-for word in sorted(list(train_set)):
+for word in train_list:
     print("Train set processing...", word)
     for file in os.listdir(data_path+"Annotation/"+word+"/trainingScript"):
         if file.split('.')[0]=="training":
-            #print(file)
-            get_train(data_path+"Annotation/"+word+"/trainingScript/"+file, word)
+            print(file)
+            get_train(data_path+"Annotation/"+word+"/trainingScript/"+file)
+
+#phones.remove('_')
 print(len(phones),sorted(list(phones)))
-phones_train=phones.copy()
-
-# IME
-get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
-print(len(phones),sorted(list(phones)))
-phones_ime=phones.copy()
-
-
-print(sorted(list(phones_train-phones_test)))
-print(sorted(list(phones_ime-phones_train-phones_test)))
-
 print(words-words_train)
 print(len(train),len(test_story),len(test_news),len(test_chat))
-
 #save
 with open("../data/train.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(train, ensure_ascii=False))
+    f.write(json.dumps(train))
 
 with open("../data/test_story.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(test_story, ensure_ascii=False))
+    f.write(json.dumps(test_story))
 with open("../data/test_news.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(test_news, ensure_ascii=False))
+    f.write(json.dumps(test_news))
 with open("../data/test_chat.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(test_chat, ensure_ascii=False))
+    f.write(json.dumps(test_chat))
 
-info={"words_test":sorted(list(words)),
-      "words_prepared":sorted(list(dct[w] for w in train_set)),
-      "words_ime":sorted(list(ime_words)),
-      "phones":sorted(list(phones))}
+info={"words":test_list,"words_train":sorted(list(words_train)),"phones":sorted(list(phones))}
 with open("../data/info.json",'w',encoding='utf8') as f:
-    f.write(json.dumps(info, ensure_ascii=False))
-
+    f.write(json.dumps(info))
