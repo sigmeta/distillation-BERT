@@ -310,6 +310,9 @@ def main():
                         type=str,
                         choices=['story', 'news', 'chat'],
                         help="Choose the test set.")
+    parser.add_argument("--no_logit_mask",
+                        action='store_true',
+                        help="Whether not to use logit mask")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -422,6 +425,9 @@ def main():
     if args.do_train:
         train_features, masks = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
+        if args.no_logit_mask:
+            print("Remove logit mask")
+            masks=None
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -443,7 +449,7 @@ def main():
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, input_mask, label_ids, label_poss, logit_masks = batch
+                input_ids, input_mask, label_ids, label_poss = batch
                 loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
@@ -499,6 +505,9 @@ def main():
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features, masks = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
+        if args.no_logit_mask:
+            print("Remove logit mask")
+            masks=None
 
         chars = [f.char for f in eval_features]
         print(len(set(chars)), sorted(list(set(chars))))
