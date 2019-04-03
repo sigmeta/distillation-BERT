@@ -313,6 +313,9 @@ def main():
     parser.add_argument("--no_logit_mask",
                         action='store_true',
                         help="Whether not to use logit mask")
+    parser.add_argument("--eval_every_epoch",
+                        action='store_true',
+                        help="Whether to evaluate for every epoch")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
