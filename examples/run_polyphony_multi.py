@@ -498,6 +498,7 @@ def main():
                 config = BertConfig(output_config_file)
                 model = BertForPolyphonyMulti(config, num_labels=num_labels)
                 model.load_state_dict(torch.load(output_model_file))
+                model.to(device)
 
                 eval_examples = processor.get_dev_examples(args.data_dir)
                 eval_features, masks = convert_examples_to_features(
