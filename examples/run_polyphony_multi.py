@@ -492,7 +492,7 @@ def main():
                 if args.no_logit_mask:
                     print("Remove logit mask")
                     masks = None
-
+                masks = masks.to(device)
                 chars = [f.char for f in eval_features]
                 print(len(set(chars)), sorted(list(set(chars))))
                 logger.info("***** Running evaluation *****")
@@ -513,6 +513,10 @@ def main():
 
                 res_list = []
                 for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
+                    input_ids = input_ids.to(device)
+                    input_mask = input_mask.to(device)
+                    label_ids = label_ids.to(device)
+                    label_poss = label_poss.to(device)
                     with torch.no_grad():
                         tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
                         logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
