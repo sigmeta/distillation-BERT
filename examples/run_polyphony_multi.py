@@ -560,7 +560,7 @@ def main():
                 for key in sorted(result.keys()):
                     logger.info("  %s = %s", key, str(result[key]))
                 output_eval_file = os.path.join(args.output_dir, "epoch_"+str(ep+1)+".txt")
-                with open(output_eval_file) as f:
+                with open(output_eval_file,'w') as f:
                     f.write(json.dumps(result)+'\n'+json.dumps(char_acc))
 
                 # multi processing
