@@ -1176,7 +1176,9 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         output = self.dropout(sequence_output)
         logits = self.classifier(output)
+        #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
+            logit_masks=logit_masks[0]
             for i in range(logits.size()[0]):
                 for j in range(logits.size()[1]):
                     if labels[i,j]!=-1:

@@ -123,10 +123,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_word = {label[0]: [] for label in label_list}
     for label in label_list:
         label_word[label[0]].append(label_map[label])
-    masks=torch.ones((len(label_list),len(label_list)))
+    masks=torch.ones((len(label_list),len(label_list))).byte()
     for i,label in enumerate(label_list):
         masks[i,label_word[label[0]]]=0
-
+    masks=torch.cat([masks.unsqueeze(0) for _ in range(8)])
+    print(masks.size(),masks)
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 100000 == 0:
@@ -166,6 +167,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
+        for i,l in example.label:
+            assert tokens[i+1]==l[0]
+            label_ids[i+1]=label_map[l]
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
         input_ids += padding
@@ -453,6 +457,7 @@ def main():
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
+                #print(masks.size())
                 loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
@@ -640,7 +645,7 @@ def main():
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
 
-        output_acc_file = os.path.join(args.output_dir, args.test_set, ".json")
+        output_acc_file = os.path.join(args.output_dir, args.test_set+".json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))
 
