@@ -486,6 +486,19 @@ def main():
 
             if args.eval_every_epoch:
                 # evaluate for every epoch
+                # save model and load for a single GPU
+                model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+                torch.save(model_to_save.state_dict(), output_model_file)
+                output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+                with open(output_config_file, 'w') as f:
+                    f.write(model_to_save.config.to_json_string())
+
+                # Load a trained model and config that you have fine-tuned
+                config = BertConfig(output_config_file)
+                model = BertForPolyphonyMulti(config, num_labels=num_labels)
+                model.load_state_dict(torch.load(output_model_file))
+
                 eval_examples = processor.get_dev_examples(args.data_dir)
                 eval_features, masks = convert_examples_to_features(
                     eval_examples, label_list, args.max_seq_length, tokenizer)
@@ -548,6 +561,10 @@ def main():
                 output_eval_file = os.path.join(args.output_dir, "epoch_"+str(ep+1)+".txt")
                 with open(output_eval_file) as f:
                     f.write(json.dumps(result)+'\n'+json.dumps(char_acc))
+
+                # multi processing
+                if n_gpu > 1:
+                    model = torch.nn.DataParallel(model)
 
 
     if args.do_train:
