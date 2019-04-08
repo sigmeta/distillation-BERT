@@ -483,7 +483,7 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-
+            
             if args.eval_every_epoch:
                 # evaluate for every epoch
                 # save model and load for a single GPU
@@ -496,9 +496,9 @@ def main():
 
                 # Load a trained model and config that you have fine-tuned
                 config = BertConfig(output_config_file)
-                model = BertForPolyphonyMulti(config, num_labels=num_labels)
-                model.load_state_dict(torch.load(output_model_file))
-                model.to(device)
+                model_eval = BertForPolyphonyMulti(config, num_labels=num_labels)
+                model_eval.load_state_dict(torch.load(output_model_file))
+                model_eval.to(device)
 
                 eval_examples = processor.get_dev_examples(args.data_dir)
                 eval_features, masks = convert_examples_to_features(
@@ -506,7 +506,8 @@ def main():
                 if args.no_logit_mask:
                     print("Remove logit mask")
                     masks = None
-                masks = masks.to(device)
+                else:
+                    masks = masks.to(device)
                 chars = [f.char for f in eval_features]
                 print(len(set(chars)), sorted(list(set(chars))))
                 logger.info("***** Running evaluation *****")
@@ -521,7 +522,7 @@ def main():
                 eval_sampler = SequentialSampler(eval_data)
                 eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-                model.eval()
+                model_eval.eval()
                 eval_loss, eval_accuracy = 0, 0
                 nb_eval_steps, nb_eval_examples = 0, 0
 
@@ -532,8 +533,8 @@ def main():
                     label_ids = label_ids.to(device)
                     label_poss = label_poss.to(device)
                     with torch.no_grad():
-                        tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
-                        logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks)
+                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
                     # print(logits.size())
                     logits = logits.detach().cpu().numpy()
                     label_ids = label_ids.to('cpu').numpy()
@@ -564,8 +565,8 @@ def main():
                     f.write(json.dumps(result)+'\n'+json.dumps(char_acc))
 
                 # multi processing
-                if n_gpu > 1:
-                    model = torch.nn.DataParallel(model)
+                #if n_gpu > 1:
+                #    model = torch.nn.DataParallel(model)
 
 
     if args.do_train:
@@ -600,7 +601,8 @@ def main():
         if args.no_logit_mask:
             print("Remove logit mask")
             masks=None
-
+        else:
+            masks = masks.to(device)
         chars = [f.char for f in eval_features]
         print(len(set(chars)), sorted(list(set(chars))))
         logger.info("***** Running evaluation *****")
@@ -620,7 +622,7 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list = []
-        masks = masks.to(device)
+        #masks = masks.to(device)
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)

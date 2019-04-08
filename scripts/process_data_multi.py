@@ -11,7 +11,7 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=Tru
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
-data_path="../data/zh-CN/"
+data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
 phones=set()
 train=[]
 test_story=[]
@@ -23,7 +23,7 @@ words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
 train_set=set(os.listdir(data_path+"Annotation"))
 ime_set=test_set-train_set
-
+print(train_set)
 assert not train_set-test_set
 
 dct={}
@@ -96,7 +96,7 @@ def get_train(path, word):
         #js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
 
-def get_train_ime(path,ime_words,ime_len=1200000):
+def get_train_ime(path,ime_words,ime_len=120000000):
     with open(path,encoding='utf8') as f:
         for i,line in enumerate(f):
             if i%1000000==0:
@@ -112,7 +112,9 @@ def get_train_ime(path,ime_words,ime_len=1200000):
             if i%4==1:
                 phones_list=line.strip().split('\t')
                 texts_list=js_data['text']
-                assert len(phones_list)==len(texts_list)
+                if len(phones_list)!=len(texts_list):
+                    print(texts_list,phones_list)
+                    continue
                 for j in range(len(texts_list)):
                     if texts_list[j] in ime_words:
                         words_train.add(texts_list[j])
