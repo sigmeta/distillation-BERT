@@ -127,7 +127,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     for i,label in enumerate(label_list):
         masks[i,label_word[label[0]]]=0
     masks=torch.cat([masks.unsqueeze(0) for _ in range(8)])
-    print(masks.size(),masks)
+    #print(masks.size(),masks)
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 100000 == 0:
@@ -168,7 +168,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_ids = [-1] * max_seq_length
 
         for i,l in example.label:
-            assert tokens[i+1]==l[0]
+            try:
+                assert tokens[i+1]==l[0]
+            except Exception as e:
+                print(e)
+                print(tokens,i,l)
+                continue
             label_ids[i+1]=label_map[l]
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
@@ -209,13 +214,15 @@ def accuracy(out, labels):
     return np.sum(outputs == labels)
 
 
-def accuracy_list(out, labels, postions):
+def accuracy_list(out, labels, positions):
     outputs = np.argmax(out, axis=2)
     res = []
     # print(out)
     # print(outputs)
-    for i, p in enumerate(postions):
-        assert labels[i, p] != -1
+    for i, p in enumerate(positions):
+        #assert labels[i, p] != -1
+        if labels[i,p]==-1:
+            print(outputs[i],labels[i],positions[i])
         # print(outputs[i,p],labels[i,p])
         if outputs[i, p] == labels[i, p]:
             res.append(1)
@@ -488,9 +495,9 @@ def main():
                 # evaluate for every epoch
                 # save model and load for a single GPU
                 model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
-                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(ep))
                 torch.save(model_to_save.state_dict(), output_model_file)
-                output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+                output_config_file = os.path.join(args.output_dir, CONFIG_NAME+'_'+str(ep))
                 with open(output_config_file, 'w') as f:
                     f.write(model_to_save.config.to_json_string())
 
@@ -668,7 +675,7 @@ def main():
             for key in sorted(char_acc.keys()):
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
-
+        print("mean accuracy",sum(char_acc[c] for c in char_acc)/len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set+".json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))

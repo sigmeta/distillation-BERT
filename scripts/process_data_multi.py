@@ -6,12 +6,15 @@ import re
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=True)
+tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-uncased", do_lower_case=True)
 
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-3M-multilingual/"
+if not os.path.exists(output_path):
+    os.mkdir(output_path)
 phones=set()
 train=[]
 test_story=[]
@@ -49,8 +52,10 @@ def get_test(path,test):
                 # print(js_data['position'])
                 js_data['text'] = js_data['text'][js_data['position'] - max_length_cut:]
                 js_data['position'] = max_length_cut
-            assert js_data['position'] != -1
-            assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
+            #assert js_data['position'] != -1
+            #assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
+            if js_data['position']==-1:
+                print(js_data['char'])
             js_data['phone'] = [[js_data['position'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data]]
             phones.add(js_data['phone'][-1][1])
             words.add(js_data['char'])
@@ -89,14 +94,14 @@ def get_train(path, word):
             js_data['text'] = js_data['text'][js_data['position'] - max_length_cut:]
             js_data['position'] = max_length_cut
         js_data['phone'] = [[js_data['position'], pho]]
-        assert js_data['position'] > -1
-        assert js_data['text'][js_data['position']] == char
+        #assert js_data['position'] > -1
+        #assert js_data['text'][js_data['position']] == char
 
         phones.add(js_data['phone'][-1][1])
         #js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
 
-def get_train_ime(path,ime_words,ime_len=120000000):
+def get_train_ime(path,ime_words,ime_len=18000000):
     with open(path,encoding='utf8') as f:
         for i,line in enumerate(f):
             if i%1000000==0:
@@ -116,13 +121,14 @@ def get_train_ime(path,ime_words,ime_len=120000000):
                     print(texts_list,phones_list)
                     continue
                 for j in range(len(texts_list)):
-                    if texts_list[j] in ime_words:
+                    if j<126 and texts_list[j] in ime_words:
                         words_train.add(texts_list[j])
                         js_data['phone'].append([j,texts_list[j]+phones_list[j]])
                         phones.add(texts_list[j]+phones_list[j])
                         js_data['position'] = j
             if i%4==2:
-                train.append(js_data)
+                if js_data['phone']:
+                    train.append(js_data)
 
 
 # test
@@ -158,19 +164,19 @@ print(words-words_train)
 print(len(train),len(test_story),len(test_news),len(test_chat))
 
 #save
-with open("../data/train.json",'w',encoding='utf8') as f:
+with open(output_path+"/train.json",'w',encoding='utf8') as f:
     f.write(json.dumps(train, ensure_ascii=False))
 
-with open("../data/test_story.json",'w',encoding='utf8') as f:
+with open(output_path+"/test_story.json",'w',encoding='utf8') as f:
     f.write(json.dumps(test_story, ensure_ascii=False))
-with open("../data/test_news.json",'w',encoding='utf8') as f:
+with open(output_path+"/test_news.json",'w',encoding='utf8') as f:
     f.write(json.dumps(test_news, ensure_ascii=False))
-with open("../data/test_chat.json",'w',encoding='utf8') as f:
+with open(output_path+"/test_chat.json",'w',encoding='utf8') as f:
     f.write(json.dumps(test_chat, ensure_ascii=False))
 
 info={"words_test":sorted(list(words)),
       "words_prepared":sorted(list(dct[w] for w in train_set)),
       "words_ime":sorted(list(ime_words)),
       "phones":sorted(list(phones))}
-with open("../data/info.json",'w',encoding='utf8') as f:
+with open(output_path+"/info.json",'w',encoding='utf8') as f:
     f.write(json.dumps(info, ensure_ascii=False))
