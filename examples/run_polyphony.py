@@ -33,20 +33,20 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertForPolyphonyClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
-logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt = '%m/%d/%Y %H:%M:%S',
-                    level = logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class InputExample(object):
     """A single training/test example for polyphony classification."""
 
-    def __init__(self, guid, text, label=None, position=None):
+    def __init__(self, guid, text, char, label=None, position=None):
         """Constructs a InputExample.
 
         Args:
@@ -60,19 +60,25 @@ class InputExample(object):
         self.text = text
         self.label = label
         self.position = position
+        self.char = char
+
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, label_id, label_pos):
+    def __init__(self, input_ids, input_mask, label_ids, label_pos, char):
         self.input_ids = input_ids
         self.input_mask = input_mask
-        self.label_id = label_id
+        self.label_id = label_ids
         self.label_pos = label_pos
+        self.char = char
 
 
 class DataProcessor(object):
     """Base class for data converters for polyphony classification data sets."""
+
+    def __init__(self, test_set):
+        self.test_set = test_set
 
     def get_train_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the train set."""
@@ -83,8 +89,8 @@ class DataProcessor(object):
 
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the dev set."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "test.json")))
-        with open(os.path.join(data_dir, "test.json"), encoding='utf8') as f:
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "test_" + self.test_set + ".json")))
+        with open(os.path.join(data_dir, "test_" + self.test_set + ".json"), encoding='utf8') as f:
             test_list = json.loads(f.read())
         return self._create_examples(test_list)
 
@@ -103,19 +109,31 @@ class DataProcessor(object):
             text = dct['text']
             label = dct['phone']
             position = dct['position']
+            char = dct['char']
             examples.append(
-                InputExample(guid=guid, text=text, label=label, position=position))
+                InputExample(guid=guid, text=text, label=label, position=position, char=char))
         return examples
 
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
-    label_map = {label : i for i, label in enumerate(label_list)}
-
+    label_map = {label: i for i, label in enumerate(label_list)}
+    label_map['_'] = -1
+    label_word = {label[0]: [] for label in label_list}
+    for label in label_list:
+        label_word[label[0]].append(label_map[label])
+    masks = torch.ones((len(label_list), len(label_list))).byte()
+    for i, label in enumerate(label_list):
+        masks[i, label_word[label[0]]] = 0
+    masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
+    # print(masks.size(),masks)
     features = []
     for (ex_index, example) in enumerate(examples):
-        tokens_a = tokenizer.tokenize(example.text)
+        if ex_index % 100000 == 0:
+            print(ex_index)
+        tokens_a = example.text
+
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
             tokens_a = tokens_a[:(max_seq_length - 2)]
@@ -141,47 +159,77 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        assert len(tokens)==len(input_ids)
+        assert len(tokens) == len(input_ids)
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
         input_mask = [1] * len(input_ids)
+        # [CLS] + [tokens] + [SEP]
+        label_ids = [-1] * max_seq_length
 
+        for i, l in example.label[-1:]:
+            try:
+                assert tokens[i + 1] == l[0]
+            except Exception as e:
+                print(e)
+                print(tokens, i, l)
+                continue
+            label_ids[i + 1] = label_map[l]
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
         input_ids += padding
         input_mask += padding
-
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
- 
-        label_id = label_map[example.label]
-        label_pos = example.position+1 #First token is [cls]
-        if label_pos>=max_seq_length-1: label_pos=0
-        assert label_pos<max_seq_length
-        #label_ids=[-1]*max_seq_length
-        #label_ids[label_pos + 1] = label_id
+        assert len(label_ids) == max_seq_length
+
+        label_pos = example.position + 1  # First token is [cls]
+        assert label_pos < max_seq_length
+        # assert tokens[label_pos]==example.label[-1][1][0]
+
+        char = example.char
+
         if ex_index < 5:
             logger.info("*** Example ***")
             logger.info("guid: %s" % (example.guid))
             logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
+                [str(x) for x in tokens]))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("label: %s (id = %d)" % (example.label, label_id))
-            logger.info("label position: %s" % (label_pos))
+            logger.info("label: %s (id = %s)" % (str(example.label), str(label_ids)))
+            logger.info("label position: %s" % (str(label_pos)))
+            logger.info("character: %s" % (char))
 
         features.append(
-                InputFeatures(input_ids=input_ids,
-                              input_mask=input_mask,
-                              label_id=label_id,
-                              label_pos=label_pos))
-    return features
+            InputFeatures(input_ids=input_ids,
+                          input_mask=input_mask,
+                          label_ids=label_ids,
+                          label_pos=label_pos,
+                          char=char))
+    return features, masks
 
 
 def accuracy(out, labels):
     outputs = np.argmax(out, axis=1)
     return np.sum(outputs == labels)
+
+
+def accuracy_list(out, labels, positions):
+    outputs = np.argmax(out, axis=2)
+    res = []
+    # print(out)
+    # print(outputs)
+    for i, p in enumerate(positions):
+        # assert labels[i, p] != -1
+        if labels[i, p] == -1:
+            print(outputs[i], labels[i], positions[i])
+        # print(outputs[i,p],labels[i,p])
+        if outputs[i, p] == labels[i, p]:
+            res.append(1)
+        else:
+            res.append(0)
+    return res
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -194,8 +242,8 @@ def main():
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--bert_model", default=None, type=str, required=True,
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                        "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
-                        "bert-base-multilingual-cased, bert-base-chinese.")
+                             "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
+                             "bert-base-multilingual-cased, bert-base-chinese.")
     parser.add_argument("--output_dir",
                         default=None,
                         type=str,
@@ -227,7 +275,7 @@ def main():
                         type=int,
                         help="Total batch size for training.")
     parser.add_argument("--eval_batch_size",
-                        default=8,
+                        default=32,
                         type=int,
                         help="Total batch size for eval.")
     parser.add_argument("--learning_rate",
@@ -268,6 +316,17 @@ def main():
                              "Positive power of 2: static loss scaling value.\n")
     parser.add_argument('--server_ip', type=str, default='', help="Can be used for distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="Can be used for distant debugging.")
+    parser.add_argument("--test_set",
+                        default='story',
+                        type=str,
+                        #choices=['story', 'news', 'chat', 'train'],
+                        help="Choose the test set.")
+    parser.add_argument("--no_logit_mask",
+                        action='store_true',
+                        help="Whether not to use logit mask")
+    parser.add_argument("--eval_every_epoch",
+                        action='store_true',
+                        help="Whether to evaluate for every epoch")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -276,7 +335,6 @@ def main():
         print("Waiting for debugger attach")
         ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
         ptvsd.wait_for_attach()
-
 
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
@@ -292,7 +350,7 @@ def main():
 
     if args.gradient_accumulation_steps < 1:
         raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-                            args.gradient_accumulation_steps))
+            args.gradient_accumulation_steps))
 
     args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
@@ -305,16 +363,12 @@ def main():
     if not args.do_train and not args.do_eval:
         raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
 
 
-    processor = DataProcessor()
+    processor = DataProcessor(args.test_set)
     label_list = processor.get_labels(args.data_dir)
     num_labels = len(label_list)
-    logger.info("num_labels:"+str(num_labels))
+    logger.info("num_labels:" + str(num_labels))
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
 
     train_examples = None
@@ -327,10 +381,24 @@ def main():
             num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
     # Prepare model
-    cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(args.local_rank))
-    model = BertForPolyphonyClassification.from_pretrained(args.bert_model,
-              cache_dir=cache_dir,
-              num_labels = num_labels)
+    cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
+                                                                   'distributed_{}'.format(args.local_rank))
+    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
+        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME)):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+            config = BertConfig(output_config_file)
+            model = BertForPolyphonyMulti(config, num_labels=num_labels)
+            model.load_state_dict(torch.load(output_model_file))
+        else:
+            raise ValueError(
+                "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
+    else:
+        os.makedirs(args.output_dir, exist_ok=True)
+        model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
+                                                  cache_dir=cache_dir,
+                                                  num_labels=num_labels)
     if args.fp16:
         model.half()
     model.to(device)
@@ -338,7 +406,8 @@ def main():
         try:
             from apex.parallel import DistributedDataParallel as DDP
         except ImportError:
-            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+            raise ImportError(
+                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
 
         model = DDP(model)
     elif n_gpu > 1:
@@ -350,13 +419,14 @@ def main():
     optimizer_grouped_parameters = [
         {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
+    ]
     if args.fp16:
         try:
             from apex.optimizers import FP16_Optimizer
             from apex.optimizers import FusedAdam
         except ImportError:
-            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+            raise ImportError(
+                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
 
         optimizer = FusedAdam(optimizer_grouped_parameters,
                               lr=args.learning_rate,
@@ -372,13 +442,19 @@ def main():
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
+    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME)):
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+        optimizer.load_state_dict(torch.load(output_optimizer_file))
 
     global_step = 0
     nb_tr_steps = 0
     tr_loss = 0
     if args.do_train:
-        train_features = convert_examples_to_features(
+        train_features, masks = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
+        if args.no_logit_mask:
+            print("Remove logit mask")
+            masks = None
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -395,15 +471,16 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
-                loss = model(input_ids, input_mask, label_ids, label_poss)
+                # print(masks.size())
+                loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
                 if n_gpu > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu.
+                    loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
 
@@ -419,34 +496,138 @@ def main():
                     if args.fp16:
                         # modify learning rate with special warm up BERT uses
                         # if args.fp16 is False, BertAdam is used that handles this automatically
-                        lr_this_step = args.learning_rate * warmup_linear(global_step/num_train_optimization_steps, args.warmup_proportion)
+                        lr_this_step = args.learning_rate * warmup_linear(global_step / num_train_optimization_steps,
+                                                                          args.warmup_proportion)
                         for param_group in optimizer.param_groups:
                             param_group['lr'] = lr_this_step
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
 
+            if args.eval_every_epoch:
+                # evaluate for every epoch
+                # save model and load for a single GPU
+                model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(ep))
+                torch.save(model_to_save.state_dict(), output_model_file)
+                output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME + '_' + str(ep))
+                torch.save(optimizer.state_dict(), output_optimizer_file)
+                output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_' + str(ep))
+                with open(output_config_file, 'w') as f:
+                    f.write(model_to_save.config.to_json_string())
+
+                # Load a trained model and config that you have fine-tuned
+                config = BertConfig(output_config_file)
+                model_eval = BertForPolyphonyMulti(config, num_labels=num_labels)
+                model_eval.load_state_dict(torch.load(output_model_file))
+                model_eval.to(device)
+
+                eval_examples = processor.get_dev_examples(args.data_dir)
+                eval_features, masks = convert_examples_to_features(
+                    eval_examples, label_list, args.max_seq_length, tokenizer)
+                if args.no_logit_mask:
+                    print("Remove logit mask")
+                    masks = None
+                else:
+                    masks = masks.to(device)
+                chars = [f.char for f in eval_features]
+                print(len(set(chars)), sorted(list(set(chars))))
+                logger.info("***** Running evaluation *****")
+                logger.info("  Num examples = %d", len(eval_examples))
+                logger.info("  Batch size = %d", args.eval_batch_size)
+                all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+                all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+                all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+                all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
+                eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+                # Run prediction for full data
+                eval_sampler = SequentialSampler(eval_data)
+                eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+                model_eval.eval()
+                eval_loss, eval_accuracy = 0, 0
+                nb_eval_steps, nb_eval_examples = 0, 0
+
+                res_list = []
+                for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
+                    input_ids = input_ids.to(device)
+                    input_mask = input_mask.to(device)
+                    label_ids = label_ids.to(device)
+                    label_poss = label_poss.to(device)
+                    with torch.no_grad():
+                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks)
+                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                    # print(logits.size())
+                    logits = logits.detach().cpu().numpy()
+                    label_ids = label_ids.to('cpu').numpy()
+                    res_list += accuracy_list(logits, label_ids, label_poss)
+                    eval_loss += tmp_eval_loss.mean().item()
+
+                    nb_eval_examples += input_ids.size(0)
+                    nb_eval_steps += 1
+
+                eval_loss = eval_loss / nb_eval_steps
+                loss = tr_loss / nb_tr_steps if args.do_train else None
+                acc = sum(res_list) / len(res_list)
+                char_count = {k: [] for k in list(set(chars))}
+                for i, c in enumerate(chars):
+                    char_count[c].append(res_list[i])
+                char_acc = {k: sum(char_count[k]) / len(char_count[k]) for k in char_count}
+
+                result = {'epoch': ep + 1,
+                          'eval_loss': eval_loss,
+                          'eval_accuracy': acc,
+                          'global_step': global_step,
+                          'loss': loss}
+                logger.info("***** Eval results *****")
+                for key in sorted(result.keys()):
+                    logger.info("  %s = %s", key, str(result[key]))
+                output_eval_file = os.path.join(args.output_dir, "epoch_" + str(ep + 1) + ".txt")
+                with open(output_eval_file, 'w') as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + '\n' + json.dumps(char_acc, ensure_ascii=False))
+
+                # multi processing
+                # if n_gpu > 1:
+                #    model = torch.nn.DataParallel(model)
+
     if args.do_train:
         # Save a trained model and the associated configuration
         model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
         output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
         torch.save(model_to_save.state_dict(), output_model_file)
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+        torch.save(optimizer.state_dict(), output_optimizer_file)
         output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
         with open(output_config_file, 'w') as f:
             f.write(model_to_save.config.to_json_string())
 
         # Load a trained model and config that you have fine-tuned
         config = BertConfig(output_config_file)
-        model = BertForPolyphonyClassification(config, num_labels = num_labels)
+        model = BertForPolyphonyMulti(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
     else:
-        model = BertForPolyphonyClassification.from_pretrained(args.bert_model, num_labels = num_labels)
+        # model = BertForPolyphonyMulti.from_pretrained(args.bert_model, num_labels = num_labels)
+        pass
     model.to(device)
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+        output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        config = BertConfig(output_config_file)
+        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
+
         eval_examples = processor.get_dev_examples(args.data_dir)
-        eval_features = convert_examples_to_features(
+        eval_features, masks = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
+        if args.no_logit_mask:
+            print("Remove logit mask")
+            masks = None
+        else:
+            masks = masks.to(device)
+        chars = [f.char for f in eval_features]
+        print(len(set(chars)), sorted(list(set(chars))))
         logger.info("***** Running evaluation *****")
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
@@ -463,6 +644,8 @@ def main():
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
 
+        res_list = []
+        # masks = masks.to(device)
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
@@ -470,12 +653,13 @@ def main():
             label_poss = label_poss.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, label_poss)
-                logits = model(input_ids, input_mask, position=label_poss)
-            #print(logits.size())
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
+                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+            # print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
+            res_list += accuracy_list(logits, label_ids, label_poss)
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -485,11 +669,18 @@ def main():
 
         eval_loss = eval_loss / nb_eval_steps
         eval_accuracy = eval_accuracy / nb_eval_examples
-        loss = tr_loss/nb_tr_steps if args.do_train else None
+        loss = tr_loss / nb_tr_steps if args.do_train else None
+        acc = sum(res_list) / len(res_list)
+        char_count = {k: [] for k in list(set(chars))}
+        for i, c in enumerate(chars):
+            char_count[c].append(res_list[i])
+        char_acc = {k: sum(char_count[k]) / len(char_count[k]) for k in char_count}
+
         result = {'eval_loss': eval_loss,
                   'eval_accuracy': eval_accuracy,
                   'global_step': global_step,
-                  'loss': loss}
+                  'loss': loss,
+                  'acc': acc}
 
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
@@ -497,6 +688,17 @@ def main():
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
+            for key in sorted(char_acc.keys()):
+                logger.info("  %s = %s", key, str(char_acc[key]))
+                writer.write("%s = %s\n" % (key, str(char_acc[key])))
+        print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
+        output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
+        output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
+        with open(output_acc_file, "w") as f:
+            f.write(json.dumps(char_acc, ensure_ascii=False))
+        with open(output_reslist_file, "w") as f:
+            f.write(json.dumps(res_list, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

@@ -193,9 +193,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         #polyphony character
         char = example.char
 
-        # classification weight, for balancing the classes
-        weight=[max(label_count)/(lc+100) for lc in label_count]
-        weight=torch.LongTensor([weight]*8)
+
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -214,6 +212,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           label_ids=label_ids,
                           label_pos=label_pos,
                           char=char))
+    # classification weight, for balancing the classes
+    weight = [max(label_count) / (lc + 100) for lc in label_count]
+    weight = torch.LongTensor([weight] * 8)
     return features, masks, weight
 
 
