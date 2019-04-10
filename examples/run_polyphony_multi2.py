@@ -319,7 +319,7 @@ def main():
     parser.add_argument("--test_set",
                         default='story',
                         type=str,
-                        choices=['story', 'news', 'chat'],
+                        choices=['story', 'news', 'chat', 'train'],
                         help="Choose the test set.")
     parser.add_argument("--no_logit_mask",
                         action='store_true',
@@ -584,7 +584,7 @@ def main():
                     logger.info("  %s = %s", key, str(result[key]))
                 output_eval_file = os.path.join(args.output_dir, "epoch_" + str(ep + 1) + ".txt")
                 with open(output_eval_file, 'w') as f:
-                    f.write(json.dumps(result) + '\n' + json.dumps(char_acc))
+                    f.write(json.dumps(result, ensure_ascii=False) + '\n' + json.dumps(char_acc, ensure_ascii=False))
 
                 # multi processing
                 # if n_gpu > 1:
@@ -693,8 +693,11 @@ def main():
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
+        output_reslist_file = os.path.join(args.output_dir, "reslist.json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))
+        with open(output_reslist_file, "w") as f:
+            f.write(json.dumps(res_list, ensure_ascii=False))
 
 
 if __name__ == "__main__":
