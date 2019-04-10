@@ -319,7 +319,7 @@ def main():
     parser.add_argument("--test_set",
                         default='story',
                         type=str,
-                        choices=['story', 'news', 'chat', 'train'],
+                        #choices=['story', 'news', 'chat', 'train'],
                         help="Choose the test set.")
     parser.add_argument("--no_logit_mask",
                         action='store_true',
@@ -693,7 +693,7 @@ def main():
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
-        output_reslist_file = os.path.join(args.output_dir, "reslist.json")
+        output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))
         with open(output_reslist_file, "w") as f:

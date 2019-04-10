@@ -12,7 +12,7 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-3M-multilingual/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-3M-rem/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -141,6 +141,7 @@ ime_words={dct[w] for w in ime_set}
 print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
+'''
 # train
 for word in sorted(list(train_set)):
     print("Train set processing...", word)
@@ -150,15 +151,15 @@ for word in sorted(list(train_set)):
             get_train(data_path+"Annotation/"+word+"/trainingScript/"+file, word)
 print(len(phones),sorted(list(phones)))
 phones_train=phones.copy()
-
+'''
 # IME
 get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
 print(len(phones),sorted(list(phones)))
 phones_ime=phones.copy()
 
 
-print(sorted(list(phones_train-phones_test)))
-print(sorted(list(phones_ime-phones_train-phones_test)))
+#print(sorted(list(phones_train-phones_test)))
+#print(sorted(list(phones_ime-phones_train-phones_test)))
 
 print(words-words_train)
 print(len(train),len(test_story),len(test_news),len(test_chat))
