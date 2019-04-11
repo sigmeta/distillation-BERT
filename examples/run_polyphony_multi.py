@@ -673,7 +673,7 @@ def main():
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
-            res_list += accuracy_list(logits, label_ids, label_poss)
+            res_list += accuracy_list_multi(logits, label_ids, label_poss)
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
