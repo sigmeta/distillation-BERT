@@ -33,7 +33,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
@@ -123,11 +123,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_word = {label[0]: [] for label in label_list}
     for label in label_list:
         label_word[label[0]].append(label_map[label])
-    masks=torch.ones((len(label_list),len(label_list))).byte()
-    for i,label in enumerate(label_list):
-        masks[i,label_word[label[0]]]=0
-    masks=torch.cat([masks.unsqueeze(0) for _ in range(8)])
-    #print(masks.size(),masks)
+    masks = torch.ones((len(label_list), len(label_list))).byte()
+    for i, label in enumerate(label_list):
+        masks[i, label_word[label[0]]] = 0
+    masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
+    # print(masks.size(),masks)
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 100000 == 0:
@@ -167,14 +167,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        for i,l in example.label:
+        for i, l in example.label:
             try:
-                assert tokens[i+1]==l[0]
+                assert tokens[i + 1] == l[0]
             except Exception as e:
                 print(e)
-                print(tokens,i,l)
+                print(tokens, i, l)
                 continue
-            label_ids[i+1]=label_map[l]
+            label_ids[i + 1] = label_map[l]
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
         input_ids += padding
@@ -206,7 +206,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           label_ids=label_ids,
                           label_pos=label_pos,
                           char=char))
-    return features,masks
+    return features, masks
 
 
 def accuracy(out, labels):
@@ -220,9 +220,9 @@ def accuracy_list(out, labels, positions):
     # print(out)
     # print(outputs)
     for i, p in enumerate(positions):
-        #assert labels[i, p] != -1
-        if labels[i,p]==-1:
-            print(outputs[i],labels[i],positions[i])
+        # assert labels[i, p] != -1
+        if labels[i, p] == -1:
+            print(outputs[i], labels[i], positions[i])
         # print(outputs[i,p],labels[i,p])
         if outputs[i, p] == labels[i, p]:
             res.append(1)
@@ -230,6 +230,18 @@ def accuracy_list(out, labels, positions):
             res.append(0)
     return res
 
+def accuracy_list_multi(out, labels, positions):
+    outputs = np.argmax(out, axis=2)
+    res = [1]*len(labels)
+    # print(out)
+    # print(outputs)
+    for i in range(len(labels)):
+        for j in range(len(labels[0])):
+            # assert labels[i, p] != -1
+            if labels[i, j]!=-1 and outputs[i,j]!=labels[i,j]:
+                res[i]=0
+                break
+    return res
 
 def main():
     parser = argparse.ArgumentParser()
@@ -319,7 +331,7 @@ def main():
     parser.add_argument("--test_set",
                         default='story',
                         type=str,
-                        choices=['story', 'news', 'chat'],
+                        #choices=['story', 'news', 'chat', 'train'],
                         help="Choose the test set.")
     parser.add_argument("--no_logit_mask",
                         action='store_true',
@@ -363,10 +375,7 @@ def main():
     if not args.do_train and not args.do_eval:
         raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+
 
     processor = DataProcessor(args.test_set)
     label_list = processor.get_labels(args.data_dir)
@@ -386,7 +395,20 @@ def main():
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
                                                                    'distributed_{}'.format(args.local_rank))
-    model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
+    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
+        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME)):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+            config = BertConfig(output_config_file)
+            model = BertForPolyphonyMulti(config, num_labels=num_labels)
+            model.load_state_dict(torch.load(output_model_file))
+        else:
+            raise ValueError(
+                "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
+    else:
+        os.makedirs(args.output_dir, exist_ok=True)
+        model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
                                                   num_labels=num_labels)
     if args.fp16:
@@ -432,6 +454,9 @@ def main():
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
+    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME)):
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+        optimizer.load_state_dict(torch.load(output_optimizer_file))
 
     global_step = 0
     nb_tr_steps = 0
@@ -441,7 +466,7 @@ def main():
             train_examples, label_list, args.max_seq_length, tokenizer)
         if args.no_logit_mask:
             print("Remove logit mask")
-            masks=None
+            masks = None
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -464,7 +489,7 @@ def main():
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
-                #print(masks.size())
+                # print(masks.size())
                 loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
@@ -490,14 +515,16 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-            
+
             if args.eval_every_epoch:
                 # evaluate for every epoch
                 # save model and load for a single GPU
                 model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
-                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(ep))
+                output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(ep))
                 torch.save(model_to_save.state_dict(), output_model_file)
-                output_config_file = os.path.join(args.output_dir, CONFIG_NAME+'_'+str(ep))
+                output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME + '_' + str(ep))
+                torch.save(optimizer.state_dict(), output_optimizer_file)
+                output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_' + str(ep))
                 with open(output_config_file, 'w') as f:
                     f.write(model_to_save.config.to_json_string())
 
@@ -545,7 +572,7 @@ def main():
                     # print(logits.size())
                     logits = logits.detach().cpu().numpy()
                     label_ids = label_ids.to('cpu').numpy()
-                    res_list += accuracy_list(logits, label_ids, label_poss)
+                    res_list += accuracy_list_multi(logits, label_ids, label_poss)
                     eval_loss += tmp_eval_loss.mean().item()
 
                     nb_eval_examples += input_ids.size(0)
@@ -559,7 +586,7 @@ def main():
                     char_count[c].append(res_list[i])
                 char_acc = {k: sum(char_count[k]) / len(char_count[k]) for k in char_count}
 
-                result = {'epoch':ep+1,
+                result = {'epoch': ep + 1,
                           'eval_loss': eval_loss,
                           'eval_accuracy': acc,
                           'global_step': global_step,
@@ -567,20 +594,21 @@ def main():
                 logger.info("***** Eval results *****")
                 for key in sorted(result.keys()):
                     logger.info("  %s = %s", key, str(result[key]))
-                output_eval_file = os.path.join(args.output_dir, "epoch_"+str(ep+1)+".txt")
-                with open(output_eval_file,'w') as f:
-                    f.write(json.dumps(result)+'\n'+json.dumps(char_acc))
+                output_eval_file = os.path.join(args.output_dir, "epoch_" + str(ep + 1) + ".txt")
+                with open(output_eval_file, 'w') as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + '\n' + json.dumps(char_acc, ensure_ascii=False))
 
                 # multi processing
-                #if n_gpu > 1:
+                # if n_gpu > 1:
                 #    model = torch.nn.DataParallel(model)
-
 
     if args.do_train:
         # Save a trained model and the associated configuration
         model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
         output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
         torch.save(model_to_save.state_dict(), output_model_file)
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+        torch.save(optimizer.state_dict(), output_optimizer_file)
         output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
         with open(output_config_file, 'w') as f:
             f.write(model_to_save.config.to_json_string())
@@ -607,7 +635,7 @@ def main():
             eval_examples, label_list, args.max_seq_length, tokenizer)
         if args.no_logit_mask:
             print("Remove logit mask")
-            masks=None
+            masks = None
         else:
             masks = masks.to(device)
         chars = [f.char for f in eval_features]
@@ -629,7 +657,7 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list = []
-        #masks = masks.to(device)
+        # masks = masks.to(device)
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
@@ -675,10 +703,13 @@ def main():
             for key in sorted(char_acc.keys()):
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
-        print("mean accuracy",sum(char_acc[c] for c in char_acc)/len(char_acc))
-        output_acc_file = os.path.join(args.output_dir, args.test_set+".json")
+        print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
+        output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
+        output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))
+        with open(output_reslist_file, "w") as f:
+            f.write(json.dumps(res_list, ensure_ascii=False))
 
 
 if __name__ == "__main__":

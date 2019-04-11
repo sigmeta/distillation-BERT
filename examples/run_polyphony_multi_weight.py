@@ -469,6 +469,7 @@ def main():
             masks = None
         if not args.use_weight:
             weight=None
+        print(weight)
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
