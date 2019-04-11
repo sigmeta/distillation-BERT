@@ -241,6 +241,8 @@ def accuracy_list_multi(out, labels, positions):
             if labels[i, j]!=-1 and outputs[i,j]!=labels[i,j]:
                 res[i]=0
                 break
+            if j>positions[i]:
+                break
     return res
 
 def main():
