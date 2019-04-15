@@ -6,13 +6,13 @@ import re
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-uncased", do_lower_case=True)
+tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=True)
 
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-3M-rem/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-300k/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -101,7 +101,7 @@ def get_train(path, word):
         #js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
 
-def get_train_ime(path,ime_words,ime_len=18000000):
+def get_train_ime(path,ime_words,ime_len=1800000):
     with open(path,encoding='utf8') as f:
         for i,line in enumerate(f):
             if i%1000000==0:
@@ -141,7 +141,6 @@ ime_words={dct[w] for w in ime_set}
 print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
-'''
 # train
 for word in sorted(list(train_set)):
     print("Train set processing...", word)
@@ -151,7 +150,7 @@ for word in sorted(list(train_set)):
             get_train(data_path+"Annotation/"+word+"/trainingScript/"+file, word)
 print(len(phones),sorted(list(phones)))
 phones_train=phones.copy()
-'''
+
 # IME
 get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
 print(len(phones),sorted(list(phones)))
