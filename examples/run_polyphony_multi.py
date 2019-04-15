@@ -466,6 +466,11 @@ def main():
     if args.do_train:
         train_features, masks = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
+        if args.eval_every_epoch:
+            eval_examples = processor.get_dev_examples(args.data_dir)
+            eval_features, masks = convert_examples_to_features(
+                eval_examples, label_list, args.max_seq_length, tokenizer)
+
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
@@ -536,9 +541,6 @@ def main():
                 model_eval.load_state_dict(torch.load(output_model_file))
                 model_eval.to(device)
 
-                eval_examples = processor.get_dev_examples(args.data_dir)
-                eval_features, masks = convert_examples_to_features(
-                    eval_examples, label_list, args.max_seq_length, tokenizer)
                 if args.no_logit_mask:
                     print("Remove logit mask")
                     masks = None
