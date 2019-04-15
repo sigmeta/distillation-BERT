@@ -11,8 +11,12 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=Tru
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
+ime_words={'伯', '吓', '拉', '殷', '菲', '凿', '熟', '看', '别', '喷', '打', '核', '约', '雀', '俩', '的', '格', '没', '择',
+           '不', '嚼', '暴', '炮', '强', '奇', '脏', '好', '乘', '更', '号', '把', '省', '淋', '脚', '种', '几', '还', '一',
+           '蹬', '作', '呱', '喝', '劈', '间', '笼', '凉', '秤', '泡', '壳', '趟', '颤', '占', '肚', '落', '荷', '冲', '搂',
+           '发', '拓', '晕', '宿', '曾', '泊', '咖', '咔', '钻', '塞', '曝', '仔', '咧', '撩', '嘎'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-pre/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-ime-30M/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -44,6 +48,8 @@ def get_test(path,test):
             js_data['text'] = tokenizer.tokenize(case.getElementsByTagName("input")[0].childNodes[0].data)
             js_data['position'] = -1
             js_data['char'] = case.getAttribute('pron_polyword')
+            if js_data['char'] not in ime_words:
+                break
             for i,w in enumerate(js_data['text']):
                 if w==js_data['char']:
                     js_data['position']=i
@@ -101,7 +107,7 @@ def get_train(path, word):
         #js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
 
-def get_train_ime(path,ime_words,ime_len=1800000):
+def get_train_ime(path,ime_words,ime_len=1800000000000):
     with open(path,encoding='utf8') as f:
         for i,line in enumerate(f):
             if i%1000000==0:
@@ -136,31 +142,21 @@ get_test(data_path+'TestCase/Story/',test_story)
 get_test(data_path+'TestCase/News/',test_news)
 get_test(data_path+'TestCase/ChitChat/',test_chat)
 print(dct)
-ime_words={dct[w] for w in ime_set}
+#ime_words={dct[w] for w in ime_set}
 
 print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
-# train
-for word in sorted(list(train_set)):
-    print("Train set processing...", word)
-    for file in os.listdir(data_path+"Annotation/"+word+"/trainingScript"):
-        if file.split('.')[0]=="training":
-            #print(file)
-            get_train(data_path+"Annotation/"+word+"/trainingScript/"+file, word)
-print(len(phones),sorted(list(phones)))
-phones_train=phones.copy()
-
-# IME
-#get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
+#IME
+get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
 print(len(phones),sorted(list(phones)))
 phones_ime=phones.copy()
 
 
-print(sorted(list(phones_train-phones_test)))
-#print(sorted(list(phones_ime-phones_train-phones_test)))
+#print(sorted(list(phones_train-phones_test)))
+print(sorted(list(phones_ime-phones_test)))
 
-print(words-words_train)
+#print(words-words_train)
 print(len(train),len(test_story),len(test_news),len(test_chat))
 
 #save
@@ -175,7 +171,7 @@ with open(output_path+"/test_chat.json",'w',encoding='utf8') as f:
     f.write(json.dumps(test_chat, ensure_ascii=False))
 
 info={"words_test":sorted(list(words)),
-      "words_prepared":sorted(list(dct[w] for w in train_set)),
+      #"words_prepared":sorted(list(dct[w] for w in train_set)),
       "words_ime":sorted(list(ime_words)),
       "phones":sorted(list(phones))}
 with open(output_path+"/info.json",'w',encoding='utf8') as f:

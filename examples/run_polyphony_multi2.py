@@ -82,8 +82,8 @@ class DataProcessor(object):
 
     def get_train_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the train set."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train_300k.json")))
-        with open(os.path.join(data_dir, "train_300k.json"), encoding='utf8') as f:
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.json")))
+        with open(os.path.join(data_dir, "train.json"), encoding='utf8') as f:
             train_list = json.loads(f.read())
         return self._create_examples(train_list)
 
