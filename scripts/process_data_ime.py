@@ -16,7 +16,8 @@ ime_words={'伯', '吓', '拉', '殷', '菲', '凿', '熟', '看', '别', '喷',
            '蹬', '作', '呱', '喝', '劈', '间', '笼', '凉', '秤', '泡', '壳', '趟', '颤', '占', '肚', '落', '荷', '冲', '搂',
            '发', '拓', '晕', '宿', '曾', '泊', '咖', '咔', '钻', '塞', '曝', '仔', '咧', '撩', '嘎'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-ime-30M/"
+ime_path="/hdfs/ipgsp/t-hasu/ppdata/Merge/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-ime-200M-64/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -24,7 +25,7 @@ train=[]
 test_story=[]
 test_news=[]
 test_chat=[]
-max_length_cut=80
+max_length_cut=32
 words=set()
 words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
@@ -127,7 +128,7 @@ def get_train_ime(path,ime_words,ime_len=1800000000000):
                     print(texts_list,phones_list)
                     continue
                 for j in range(len(texts_list)):
-                    if j<126 and texts_list[j] in ime_words:
+                    if j<62 and texts_list[j] in ime_words:
                         words_train.add(texts_list[j])
                         js_data['phone'].append([j,texts_list[j]+phones_list[j]])
                         phones.add(texts_list[j]+phones_list[j])
@@ -148,7 +149,9 @@ print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
 #IME
-get_train_ime(data_path+"IMELogs/0-30000000.txt",ime_words)
+for txt in os.listdir(ime_path):
+    print(txt)
+    get_train_ime(ime_path+txt,ime_words)
 print(len(phones),sorted(list(phones)))
 phones_ime=phones.copy()
 

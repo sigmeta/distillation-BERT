@@ -9,7 +9,7 @@ with open(data_path+"train.json",encoding='utf8') as f:
     js=json.loads(f.read())
 
 for data in js:
-    char=data['phone'][0]
+    char=data['phone'][0][1][0]
     if char in freq:
         freq[char]+=1
     else:
@@ -29,4 +29,4 @@ for char in freq:
         res+=cate[char]
 
 with open(data_path+"train_up_char.json",'w',encoding='utf8') as f:
-    f.write(res)
+    f.write(json.dumps(res))
