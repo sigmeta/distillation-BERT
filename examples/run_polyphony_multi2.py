@@ -24,6 +24,7 @@ import os
 import random
 import sys
 import json
+import re
 
 import numpy as np
 import torch
@@ -383,11 +384,16 @@ def main():
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
                                                                    'distributed_{}'.format(args.local_rank))
+    max_epoch = -1
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
         #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME)):
-            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-            output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        files=os.listdir(args.output_dir)
+        for fname in files:
+            if re.search(WEIGHTS_NAME,fname) and fname!= WEIGHTS_NAME:
+                max_epoch=max(max_epoch,int(fname.split('_')[-1]))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME+'_0')
             config = BertConfig(output_config_file)
             model = BertForPolyphonyMulti(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
@@ -442,8 +448,8 @@ def main():
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
-    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME)):
-        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))):
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))
         optimizer.load_state_dict(torch.load(output_optimizer_file))
 
     global_step = 0
@@ -476,7 +482,7 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
-        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(max_epoch+1,int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
