@@ -1336,8 +1336,8 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        hidden = (torch.autograd.Variable(torch.zeros(input_ids.size()[0], 2, self.hidden_size)),
-                  torch.autograd.Variable(torch.zeros(input_ids.size()[0], 2, self.hidden_size)))
+        hidden = (torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)),
+                  torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)))
         output = self.dropout(sequence_output)
         output,_ = self.bilstm(output,hidden)
         output = self.dropout(output)
@@ -1414,8 +1414,8 @@ class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.bilstm = nn.LSTM(config.hidden_size, config.hidden_size, batch_first=True,
                               dropout=0, bidirectional=True)
-        self.hidden = (torch.autograd.Variable(torch.zeros(1, 2, self.hidden_size)),
-                  torch.autograd.Variable(torch.zeros(1, 2, self.hidden_size)))
+        self.hidden = (torch.autograd.Variable(torch.zeros(2, 1, self.hidden_size)),
+                  torch.autograd.Variable(torch.zeros(2, 1, self.hidden_size)))
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
 
