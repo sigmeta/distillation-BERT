@@ -12,7 +12,7 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-64/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-8/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -20,7 +20,7 @@ train=[]
 test_story=[]
 test_news=[]
 test_chat=[]
-max_length_cut=32
+max_length_cut=4
 words=set()
 words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
