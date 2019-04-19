@@ -12,7 +12,7 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-8/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-128-cut/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -20,7 +20,7 @@ train=[]
 test_story=[]
 test_news=[]
 test_chat=[]
-max_length_cut=4
+max_length_cut=64
 words=set()
 words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
@@ -79,6 +79,15 @@ def get_train(path, word):
         pho='_'
 
         # get the pronunciation
+        def cut_sent(para):
+            para = re.sub('([。！？\?])([^”’])', r"\1\n\2", para)  # 单字符断句符
+            para = re.sub('(\.{6})([^”’])', r"\1\n\2", para)  # 英文省略号
+            para = re.sub('(……)([^”’])', r"\1\n\2", para)  # 中文省略号
+            para = re.sub('([。！？\?][”’])([^，。！？\?])', r'\1\n\2', para)
+            # 如果双引号前有终止符，那么双引号才是句子的终点，把分句符\n放到双引号后，注意前面的几句都小心保留了双引号
+            para = para.rstrip()  # 段尾如果有多余的\n就去掉它
+            # 很多规则中会考虑分号;，但是这里我把它忽略不计，破折号、英文双引号等同样忽略，需要的再做些简单调整即可。
+            return para.split("\n")
         for i,w in enumerate(si.getElementsByTagName("w")):
             js_data['text']+=w.getAttribute('v')
             if w.getAttribute('v') == char:
@@ -86,6 +95,11 @@ def get_train(path, word):
         if pho=='_': # wrong case
             print(js_data['text'])
             continue
+        sents=cut_sent(js_data['text'])
+        if len(sents)>1:
+            for sent in sents:
+                if char in sent:
+                    js_data['text']=sent
         # get the position
         js_data['text'] = tokenizer.tokenize(js_data['text'])
         for i,w in enumerate(js_data['text']):

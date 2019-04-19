@@ -1257,7 +1257,8 @@ class BertForPolyphonyMultiNgram(BertPreTrainedModel):
         for i in range(labels.size()[0]):
             for j in range(labels.size()[1]):
                 if labels[i,j]!=-1:
-                    output[i,j,self.hidden_size:]=torch.mean(output[i,max(0,j-2):j+3,:self.hidden_size],0).squeeze()
+                    #output[i,j,self.hidden_size:]=torch.mean(output[i,[j-1,j+1],:self.hidden_size],0).squeeze()
+                    output[i,j,self.hidden_size:]=torch.mean(output[i,j-1:j+2,:self.hidden_size],0).squeeze() 
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
@@ -1432,7 +1433,7 @@ class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
                     else:
                         p=2
                     if output_lstm is None:
-                        output_lstm=self.bilstm(output[i,max(0,j-2):j+3,:].unsqueeze(0))[0][0,p,:].unsqueeze(0)
+                        output_lstm=self.bilstm(output[i,max(0,j-1):j+2,:].unsqueeze(0))[0][0,p,:].unsqueeze(0)
                     else:
                         output_lstm=torch.cat((output_lstm,self.bilstm(output[i,max(0,j-2):j+3,:].unsqueeze(0))[0][0,p,:].unsqueeze(0)),0)
         #print(output_lstm.size())

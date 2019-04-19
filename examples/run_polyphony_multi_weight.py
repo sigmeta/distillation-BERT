@@ -213,7 +213,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           label_pos=label_pos,
                           char=char))
     # classification weight, for balancing the classes
-    weight = [((max(label_count)+100) / (lc + 100))**0.8 for lc in label_count]
+    weight = [(max(label_count) / (lc + 100))**1 for lc in label_count]
+    print(weight)
     weight = torch.FloatTensor([weight] * 8)
     return features, masks, weight
 
