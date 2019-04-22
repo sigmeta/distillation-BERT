@@ -154,6 +154,7 @@ class BERTDataset(Dataset):
         for i,w in enumerate(wlist):
             prob = random.random()
             if prob<0.15:
+                w=self.tokenizer.tokenize(w)
                 prob /= 0.15
                 if prob<0.8:
                     wlist[i]=' '.join(["MASK"]*len(w))
@@ -285,7 +286,7 @@ def convert_example_to_features(example, max_seq_length, tokenizer):
     :return: InputFeatures, containing all inputs and labels of one sample as IDs (as used for model training)
     """
     tokens_a = example.tokens_msk[:max_seq_length-2]
-    t1_label = example.tokens_ori[:max_seq_length-2]
+    t1_label = tokenizer.convert_tokens_to_ids(example.tokens_ori[:max_seq_length-2])
     token_types = [0]*len(tokens_a)
     #tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
     # concatenate lm labels and account for CLS, SEP
