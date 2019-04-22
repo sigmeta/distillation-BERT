@@ -35,6 +35,7 @@ from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 from torch.utils.data import Dataset
 import jieba
+import pkuseg
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -66,6 +67,7 @@ class BERTDataset(Dataset):
         self.current_random_doc = 0
         self.num_docs = 0
         self.sample_to_doc = [] # map sample index to doc and line
+        self.seg=pkuseg.pkuseg()
 
         # load samples into memory
         if on_memory:
@@ -148,7 +150,7 @@ class BERTDataset(Dataset):
 
 
     def random_mask(self, text):
-        wlist=jieba.cut(text)
+        wlist=self.seg.cut(text)
         for i,w in enumerate(wlist):
             prob = random.random()
             if prob<0.15:
