@@ -510,7 +510,7 @@ def main():
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -538,6 +538,10 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
+                model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+                output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_" + str(ep))
+                if args.do_train:
+                    torch.save(model_to_save.state_dict(), output_model_file)
             logger.info("training loss: %s",tr_loss/nb_tr_steps)
 
         # Save a trained model
