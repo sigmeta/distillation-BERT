@@ -34,7 +34,7 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 from torch.utils.data import Dataset
-import random
+import jieba
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -126,13 +126,15 @@ class BERTDataset(Dataset):
                 self.file.close()
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
 
-        t1 = self.get_corpus_line(item)
+        t_ori = self.get_corpus_line(item)
+        t_msk=self.random_mask(t_ori)
 
         # tokenize
-        tokens_a = self.tokenizer.tokenize(t1)
+        tokens_msk = self.tokenizer.tokenize(t_msk)
+        tokens_ori = self.tokenizer.tokenize(t_ori)
 
         # combine to one sample
-        cur_example = InputExample(guid=cur_id, tokens_a=tokens_a)
+        cur_example = InputExample(guid=cur_id, tokens_ori=tokens_ori, tokens_msk=tokens_msk)
 
         # transform sample to features
         cur_features = convert_example_to_features(cur_example, self.seq_len, self.tokenizer)
@@ -143,6 +145,22 @@ class BERTDataset(Dataset):
                        torch.tensor(cur_features.lm_label_ids))
 
         return cur_tensors
+
+
+    def random_mask(self, text):
+        wlist=jieba.cut(text)
+        for i,w in enumerate(wlist):
+            prob = random.random()
+            if prob<0.15:
+                prob /= 0.15
+                if prob<0.8:
+                    wlist[i]=' '.join(["MASK"]*len(w))
+                elif prob<0.9:
+                    rw=[]
+                    for j in range(len(w)):
+                        rw.append(random.choice(list(self.tokenizer.vocab.items()))[0])
+                    wlist[i] = ' '.join(rw)
+        return ' '.join(wlist)
 
 
     def get_corpus_line(self, item):
@@ -187,7 +205,7 @@ class BERTDataset(Dataset):
 class InputExample(object):
     """A single training/test example for the language model."""
 
-    def __init__(self, guid, tokens_a, tokens_b=None, is_next=None, lm_labels=None):
+    def __init__(self, guid, tokens_ori, tokens_msk, is_next=None, lm_labels=None):
         """Constructs a InputExample.
 
         Args:
@@ -200,8 +218,8 @@ class InputExample(object):
             specified for train and dev examples, but not for test examples.
         """
         self.guid = guid
-        self.tokens_a = tokens_a
-        self.tokens_b = tokens_b
+        self.tokens_ori = tokens_ori
+        self.tokens_msk = tokens_msk
         self.is_next = is_next  # nextSentence
         self.lm_labels = lm_labels  # masked words for language model
 
@@ -264,9 +282,10 @@ def convert_example_to_features(example, max_seq_length, tokenizer):
     :param tokenizer: Tokenizer
     :return: InputFeatures, containing all inputs and labels of one sample as IDs (as used for model training)
     """
-    tokens_a = example.tokens_a[:max_seq_length-2]
-
-    tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
+    tokens_a = example.tokens_msk[:max_seq_length-2]
+    t1_label = example.tokens_ori[:max_seq_length-2]
+    token_types = [0]*len(tokens_a)
+    #tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
     # concatenate lm labels and account for CLS, SEP
     lm_label_ids = ([-1] + t1_label + [-1])
 
@@ -538,7 +557,7 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-            logger.info("training loss: %s",tr_loss/nb_tr_steps)
+            logger.info("training loss: %s",tr_loss)
 
         # Save a trained model
         logger.info("** ** * Saving fine - tuned model ** ** * ")
