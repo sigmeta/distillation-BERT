@@ -231,11 +231,11 @@ def random_word(tokens, tokenizer):
         if tokens[i] in polyphones:
             token_types[i]=1
             # 80% randomly change token to mask token
-            if prob < 0.4:
+            if prob < 0.3:
                 tokens[i] = "[MASK]"
 
             # 10% randomly change token to random token
-            elif prob < 0.5:
+            elif prob < 0.35:
                 tokens[i] = random.choice(list(tokenizer.vocab.items()))[0]
 
             # -> rest 10% randomly keep current token

@@ -37,7 +37,8 @@ def get_train(path, word):
         for i,w in enumerate(si.getElementsByTagName("w")):
             text+=w.getAttribute('v')
         sents=cut_sent(text)
-        train=train+sents
+        for sent in sents:
+            train.append(sent)
 
 def get_train_ime(path, ime_len=1200000):
     with open(path,encoding='utf8') as f:
