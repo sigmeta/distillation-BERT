@@ -577,6 +577,9 @@ class BertPreTrainedModel(nn.Module):
         # Load config
         config_file = os.path.join(serialization_dir, CONFIG_NAME)
         config = BertConfig.from_json_file(config_file)
+        config.hidden_dropout_prob=0.2
+        config.attention_probs_dropout_prob=0.2
+
         logger.info("Model config {}".format(config))
         # Instantiate model.
         model = cls(config, *inputs, **kwargs)
