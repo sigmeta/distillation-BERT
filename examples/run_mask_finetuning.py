@@ -227,16 +227,17 @@ def random_word(tokens, tokenizer):
     token_types = [0] * len(tokens)
     for i, token in enumerate(tokens):
         prob = random.random()
-        # mask token with 15% probability
+        # mask token
         if tokens[i] in polyphones:
-            token_types[i]=1
-            # 80% randomly change token to mask token
-            if prob < 0.3:
+            # 45% randomly change token to mask token
+            if prob < 0.45:
                 tokens[i] = "[MASK]"
+                token_types[i] = 1
 
-            # 10% randomly change token to random token
-            elif prob < 0.35:
+            # 5% randomly change token to random token
+            elif prob < 0.5:
                 tokens[i] = random.choice(list(tokenizer.vocab.items()))[0]
+                token_types[i] = 1
 
             # -> rest 10% randomly keep current token
 

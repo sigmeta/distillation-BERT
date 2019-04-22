@@ -1170,12 +1170,14 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         print(num_labels)
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.linear=nn.Linear(config.hidden_size,config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         output = self.dropout(sequence_output)
+        output=self.linear(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
@@ -1341,7 +1343,7 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
         #          torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)))
         output = self.dropout(sequence_output)
         output,_ = self.bilstm(output)
-        output = self.dropout(output)
+        #output = self.dropout(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
@@ -1421,9 +1423,8 @@ class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
-        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-
-        output = self.dropout(sequence_output)
+        output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        #output = self.dropout(sequence_output)
         output_lstm=None
         for i in range(labels.size()[0]):
             for j in range(labels.size()[1]):
