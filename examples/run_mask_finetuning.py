@@ -538,6 +538,7 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
+            logger.info("training loss: %s",tr_loss)
 
         # Save a trained model
         logger.info("** ** * Saving fine - tuned model ** ** * ")
