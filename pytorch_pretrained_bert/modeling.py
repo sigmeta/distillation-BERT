@@ -1423,8 +1423,8 @@ class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
-        output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        #output = self.dropout(sequence_output)
+        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        output = self.dropout(sequence_output)
         output_lstm=None
         for i in range(labels.size()[0]):
             for j in range(labels.size()[1]):
@@ -1442,6 +1442,7 @@ class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
         #print(output_lstm.size())
         output_lstm=output_lstm.expand(output_lstm.size()[0],labels.size()[1],output_lstm.size()[2])
         #print(output_lstm.size())
+        output_lstm=self.dropout(output_lstm)
         logits = self.classifier(output_lstm)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
