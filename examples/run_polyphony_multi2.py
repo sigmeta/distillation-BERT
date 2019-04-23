@@ -390,14 +390,14 @@ def main():
                                                                    'distributed_{}'.format(args.local_rank))
     max_epoch = -1
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        files=os.listdir(args.output_dir)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        files = os.listdir(args.output_dir)
         for fname in files:
-            if re.search(WEIGHTS_NAME,fname) and fname!= WEIGHTS_NAME:
-                max_epoch=max(max_epoch,int(fname.split('_')[-1]))
-        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))):
-            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))
-            output_config_file = os.path.join(args.output_dir, CONFIG_NAME+'_0')
+            if re.search(WEIGHTS_NAME, fname) and fname != WEIGHTS_NAME:
+                max_epoch = max(max_epoch, int(fname.split('_')[-1]))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
             model = BertForPolyphonyMulti(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
@@ -495,7 +495,7 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
-        for ep in trange(max_epoch+1,int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):

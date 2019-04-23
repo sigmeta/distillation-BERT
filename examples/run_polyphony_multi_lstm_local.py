@@ -328,6 +328,10 @@ def main():
     parser.add_argument("--eval_every_epoch",
                         action='store_true',
                         help="Whether to evaluate for every epoch")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -386,14 +390,14 @@ def main():
                                                                    'distributed_{}'.format(args.local_rank))
     max_epoch = -1
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        files=os.listdir(args.output_dir)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        files = os.listdir(args.output_dir)
         for fname in files:
-            if re.search(WEIGHTS_NAME,fname) and fname!= WEIGHTS_NAME:
-                max_epoch=max(max_epoch,int(fname.split('_')[-1]))
-        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))):
-            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME+'_'+str(max_epoch))
-            output_config_file = os.path.join(args.output_dir, CONFIG_NAME+'_0')
+            if re.search(WEIGHTS_NAME, fname) and fname != WEIGHTS_NAME:
+                max_epoch = max(max_epoch, int(fname.split('_')[-1]))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
             model = BertForPolyphonyMultiLSTMLocal(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
@@ -402,8 +406,17 @@ def main():
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
     else:
         os.makedirs(args.output_dir, exist_ok=True)
+        if args.state_dir and os.path.exists(args.state_dir):
+            state_dict=torch.load(args.state_dir)
+            print("Using my own BERT state dict.")
+        elif args.state_dir and not os.path.exists(args.state_dir):
+            print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
+            state_dict=None
+        else:
+            state_dict=None
         model = BertForPolyphonyMultiLSTMLocal.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
+                                                  state_dict=state_dict,
                                                   num_labels=num_labels)
     if args.fp16:
         model.half()

@@ -24,6 +24,7 @@ import os
 import random
 import sys
 import json
+import re
 
 import numpy as np
 import torch
@@ -339,6 +340,10 @@ def main():
     parser.add_argument("--use_weight",
                         action='store_true',
                         help="Whether to use class-balancing weight")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -408,8 +413,17 @@ def main():
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
     else:
         os.makedirs(args.output_dir, exist_ok=True)
+        if args.state_dir and os.path.exists(args.state_dir):
+            state_dict=torch.load(args.state_dir)
+            print("Using my own BERT state dict.")
+        elif args.state_dir and not os.path.exists(args.state_dir):
+            print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
+            state_dict=None
+        else:
+            state_dict=None
         model = BertForPolyphonyMultiLSTM.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
+                                                  state_dict=state_dict,
                                                   num_labels=num_labels)
     if args.fp16:
         model.half()

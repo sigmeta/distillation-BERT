@@ -24,6 +24,7 @@ import os
 import random
 import sys
 import json
+import re
 
 import numpy as np
 import torch
@@ -340,6 +341,10 @@ def main():
     parser.add_argument("--use_weight",
                         action='store_true',
                         help="Whether to use class-balancing weight")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -396,11 +401,16 @@ def main():
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
                                                                    'distributed_{}'.format(args.local_rank))
+    max_epoch = -1
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME)):
-            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-            output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        files = os.listdir(args.output_dir)
+        for fname in files:
+            if re.search(WEIGHTS_NAME, fname) and fname != WEIGHTS_NAME:
+                max_epoch = max(max_epoch, int(fname.split('_')[-1]))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
             model = BertForPolyphonyMulti(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
@@ -409,8 +419,17 @@ def main():
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
     else:
         os.makedirs(args.output_dir, exist_ok=True)
+        if args.state_dir and os.path.exists(args.state_dir):
+            state_dict=torch.load(args.state_dir)
+            print("Using my own BERT state dict.")
+        elif args.state_dir and not os.path.exists(args.state_dir):
+            print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
+            state_dict=None
+        else:
+            state_dict=None
         model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
+                                                  state_dict=state_dict,
                                                   num_labels=num_labels)
     if args.fp16:
         model.half()
@@ -455,8 +474,8 @@ def main():
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
-    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME)):
-        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))):
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))
         optimizer.load_state_dict(torch.load(output_optimizer_file))
 
     global_step = 0

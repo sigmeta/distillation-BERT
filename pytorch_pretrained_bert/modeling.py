@@ -577,8 +577,8 @@ class BertPreTrainedModel(nn.Module):
         # Load config
         config_file = os.path.join(serialization_dir, CONFIG_NAME)
         config = BertConfig.from_json_file(config_file)
-        config.hidden_dropout_prob=0.3
-        config.attention_probs_dropout_prob=0.2
+        config.hidden_dropout_prob=0.1
+        config.attention_probs_dropout_prob=0.1
         config.num_hidden_layers=12
 
         logger.info("Model config {}".format(config))
@@ -1181,8 +1181,8 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         output = self.dropout(sequence_output)
-        output=self.linear(output)
-        output=self.dropout(output)
+        #output=self.linear(output)
+        #output=self.dropout(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
