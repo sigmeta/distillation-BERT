@@ -128,13 +128,13 @@ class BERTDataset(Dataset):
                 self.file.close()
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
 
-        t_ori = self.get_corpus_line(item)
-        t_msk=self.random_mask(t_ori)
+        t = self.get_corpus_line(item)
+        tokens_msk,tokens_ori=self.random_mask(t)
 
         # tokenize
-        tokens_msk = self.tokenizer.tokenize(t_msk)
-        tokens_ori = self.tokenizer.tokenize(t_ori)
-
+        #tokens_msk = self.tokenizer.tokenize(t_msk)
+        #tokens_ori = self.tokenizer.tokenize(t_ori)
+        #print(len(tokens_msk),len(tokens_ori))
         # combine to one sample
         cur_example = InputExample(guid=cur_id, tokens_ori=tokens_ori, tokens_msk=tokens_msk)
 
@@ -150,20 +150,29 @@ class BERTDataset(Dataset):
 
 
     def random_mask(self, text):
+        olist=[]
+        mlist=[]
         wlist=self.seg.cut(text)
         for i,w in enumerate(wlist):
             prob = random.random()
             if prob<0.15:
                 w=self.tokenizer.tokenize(w)
+                olist+=self.tokenizer.convert_tokens_to_ids(w)
                 prob /= 0.15
                 if prob<0.8:
-                    wlist[i]=' '.join(["MASK"]*len(w))
+                    mlist+=["[MASK]"]*len(w)
                 elif prob<0.9:
-                    rw=[]
                     for j in range(len(w)):
-                        rw.append(random.choice(list(self.tokenizer.vocab.items()))[0])
-                    wlist[i] = ' '.join(rw)
-        return ' '.join(wlist)
+                        mlist.append(random.choice(list(self.tokenizer.vocab.items()))[0])
+                else:
+                    mlist+=w
+            else:
+                w=self.tokenizer.tokenize(w)
+                olist+=[-1]*len(w)
+                mlist+=w
+        #if len(olist)!=len(mlist):
+        #    print(olist,mlist)
+        return mlist,olist
 
 
     def get_corpus_line(self, item):
@@ -285,8 +294,9 @@ def convert_example_to_features(example, max_seq_length, tokenizer):
     :param tokenizer: Tokenizer
     :return: InputFeatures, containing all inputs and labels of one sample as IDs (as used for model training)
     """
+    assert len(example.tokens_msk)==len(example.tokens_ori)
     tokens_a = example.tokens_msk[:max_seq_length-2]
-    t1_label = tokenizer.convert_tokens_to_ids(example.tokens_ori[:max_seq_length-2])
+    t1_label = example.tokens_ori[:max_seq_length-2]
     token_types = [0]*len(tokens_a)
     #tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
     # concatenate lm labels and account for CLS, SEP
@@ -560,11 +570,11 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-                model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
-                output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_"+str(ep))
-                if args.do_train:
-                    torch.save(model_to_save.state_dict(), output_model_file)
-            logger.info("training loss: %s",tr_loss)
+            model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+            output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_"+str(ep))
+            if args.do_train:
+                torch.save(model_to_save.state_dict(), output_model_file)
+            logger.info("training loss: %s",tr_loss/nb_tr_steps)
 
         # Save a trained model
         logger.info("** ** * Saving fine - tuned model ** ** * ")

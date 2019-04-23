@@ -538,10 +538,10 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-                model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
-                output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_" + str(ep))
-                if args.do_train:
-                    torch.save(model_to_save.state_dict(), output_model_file)
+            model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+            output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_" + str(ep))
+            if args.do_train:
+                torch.save(model_to_save.state_dict(), output_model_file)
             logger.info("training loss: %s",tr_loss/nb_tr_steps)
 
         # Save a trained model
