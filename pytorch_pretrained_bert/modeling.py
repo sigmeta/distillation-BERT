@@ -703,7 +703,12 @@ class BertModel(BertPreTrainedModel):
         # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
         # this attention mask is more simple than the triangular masking of causal attention
         # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        if len(attention_mask.size())==2:
+            extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        elif len(attention_mask.size())==3:
+            extended_attention_mask = attention_mask.unsqueeze(1)
+        else:
+            extended_attention_mask = attention_mask
 
         # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
         # masked positions, this operation will create a tensor which is 0.0 for
@@ -1348,7 +1353,7 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
         #          torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)))
         output = self.dropout(sequence_output)
         output,_ = self.bilstm(output)
-        #output = self.dropout(output)
+        output = self.dropout(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
