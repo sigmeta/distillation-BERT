@@ -140,12 +140,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     attention_mask[4:6, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
     # local attention, window size = 5
     attention_mask[6:8, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 2), -2)
+    attention_mask=torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
     # Gaussian attention
     def gaussian(x,miu,sig=1):
         return math.e ** (-(x - miu) ** 2 / (2 * sig ** 2)) / (math.sqrt(2 * math.pi) * sig)
 
     for (ex_index, example) in enumerate(examples):
-        if ex_index % 10000 == 0:
+        if ex_index % 100000 == 0:
             print(ex_index)
         tokens_a = example.text
 
@@ -202,7 +203,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert label_pos < max_seq_length
         # assert tokens[label_pos]==example.label[-1][1][0]
 
-        input_mask=attention_mask*torch.LongTensor(input_mask)
+        #input_mask=attention_mask*torch.LongTensor(input_mask)
         #input_mask = input_mask.long()
         char = example.char
 
@@ -223,7 +224,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           label_ids=label_ids,
                           label_pos=label_pos,
                           char=char))
-    return features, masks
+    return features, masks, attention_mask
 
 
 def accuracy(out, labels):
@@ -485,13 +486,14 @@ def main():
     nb_tr_steps = 0
     tr_loss = 0
     if args.do_train:
-        train_features, masks = convert_examples_to_features(
+        train_features, masks, hybrid_mask = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
         if args.eval_every_epoch:
             eval_examples = processor.get_dev_examples(args.data_dir)
-            eval_features, masks = convert_examples_to_features(
+            eval_features, masks, hybrid_mask = convert_examples_to_features(
                 eval_examples, label_list, args.max_seq_length, tokenizer)
 
+        hybrid_mask.to(device)
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
@@ -518,7 +520,7 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
                 # print(masks.size())
-                loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
+                loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
@@ -592,8 +594,8 @@ def main():
                     label_ids = label_ids.to(device)
                     label_poss = label_poss.to(device)
                     with torch.no_grad():
-                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks)
-                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
                     # print(logits.size())
                     logits = logits.detach().cpu().numpy()
                     label_ids = label_ids.to('cpu').numpy()
@@ -656,8 +658,9 @@ def main():
         model.to(device)
 
         eval_examples = processor.get_dev_examples(args.data_dir)
-        eval_features, masks = convert_examples_to_features(
+        eval_features, masks, hybrid_mask = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
+        hybrid_mask.to(device)
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
@@ -690,8 +693,8 @@ def main():
             label_poss = label_poss.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
-                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
             # print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
