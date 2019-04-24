@@ -131,21 +131,21 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
     # print(masks.size(),masks)
     features = []
-    attention_mask=torch.ones(12,max_seq_length,max_seq_length)
+    attention_mask=torch.ones(12,max_seq_length,max_seq_length, dtype=torch.long)
     # left attention
-    attention_mask[:2,:,:]=torch.tril(torch.ones(max_seq_length,max_seq_length))
+    attention_mask[:2,:,:]=torch.tril(torch.ones(max_seq_length,max_seq_length, dtype=torch.long))
     # right attention
-    attention_mask[2:4, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length))
+    attention_mask[2:4, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
     # local attention, window size = 3
-    attention_mask[4:6, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length), 1), -1)
+    attention_mask[4:6, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
     # local attention, window size = 5
-    attention_mask[6:8, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length), 2), -2)
+    attention_mask[6:8, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 2), -2)
     # Gaussian attention
     def gaussian(x,miu,sig=1):
         return math.e ** (-(x - miu) ** 2 / (2 * sig ** 2)) / (math.sqrt(2 * math.pi) * sig)
 
     for (ex_index, example) in enumerate(examples):
-        if ex_index % 100000 == 0:
+        if ex_index % 10000 == 0:
             print(ex_index)
         tokens_a = example.text
 
@@ -202,8 +202,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert label_pos < max_seq_length
         # assert tokens[label_pos]==example.label[-1][1][0]
 
-        input_mask=attention_mask*torch.Tensor(input_mask)
-        input_mask = input_mask.long()
+        input_mask=attention_mask*torch.LongTensor(input_mask)
+        #input_mask = input_mask.long()
         char = example.char
 
         if ex_index < 5:
