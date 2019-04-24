@@ -577,7 +577,7 @@ class BertPreTrainedModel(nn.Module):
         # Load config
         config_file = os.path.join(serialization_dir, CONFIG_NAME)
         config = BertConfig.from_json_file(config_file)
-        config.hidden_dropout_prob=0.1
+        config.hidden_dropout_prob=0.2
         config.attention_probs_dropout_prob=0.1
         config.num_hidden_layers=12
 
@@ -1345,6 +1345,7 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
         print(num_labels)
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout_lstm = nn.Dropout(0.1)
         self.bilstm = nn.LSTM(config.hidden_size, config.hidden_size//2, batch_first=True,
                               dropout=0, bidirectional=True)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
@@ -1356,7 +1357,7 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
         #          torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)))
         output = self.dropout(sequence_output)
         output,_ = self.bilstm(output)
-        output = self.dropout(output)
+        output = self.dropout_lstm(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
