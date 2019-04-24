@@ -493,7 +493,7 @@ def main():
             eval_features, masks, hybrid_mask = convert_examples_to_features(
                 eval_examples, label_list, args.max_seq_length, tokenizer)
 
-        hybrid_mask.to(device)
+        hybrid_mask=hybrid_mask.to(device)
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
@@ -563,6 +563,7 @@ def main():
                 model_eval = BertForPolyphonyMulti(config, num_labels=num_labels)
                 model_eval.load_state_dict(torch.load(output_model_file))
                 model_eval.to(device)
+                hybrid_mask = hybrid_mask.to(device)
 
                 if args.no_logit_mask:
                     print("Remove logit mask")
@@ -660,7 +661,7 @@ def main():
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features, masks, hybrid_mask = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
-        hybrid_mask.to(device)
+        hybrid_mask = hybrid_mask.to(device)
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
