@@ -12,7 +12,7 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-pre/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-2/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -34,6 +34,8 @@ dct={}
 
 def get_test(path,test):
     for word in os.listdir(path):
+        if re.search('_.*\.',word).group()[1:-1] not in train_set:
+            continue
         print("Test set processing...", word)
         DOMTree = xml.dom.minidom.parse(path+word)
         collection = DOMTree.documentElement
@@ -44,9 +46,14 @@ def get_test(path,test):
             js_data['text'] = tokenizer.tokenize(case.getElementsByTagName("input")[0].childNodes[0].data)
             js_data['position'] = -1
             js_data['char'] = case.getAttribute('pron_polyword')
+            index = int(case.getAttribute('index'))
+            count=1
             for i,w in enumerate(js_data['text']):
-                if w==js_data['char']:
+                if w==js_data['char'] and count==index:
                     js_data['position']=i
+                    break
+                elif w==js_data['char']:
+                    count+=1
             # cut the text if too long
             if js_data['position'] > max_length_cut:
                 # print(js_data['position'])
