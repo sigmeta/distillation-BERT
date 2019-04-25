@@ -34,8 +34,8 @@ dct={}
 
 def get_test(path,test):
     for word in os.listdir(path):
-        if re.search('_.*\.',word).group()[1:-1] not in train_set:
-            continue
+        #if re.search('_.*\.',word).group()[1:-1] not in train_set:
+        #    continue
         print("Test set processing...", word)
         DOMTree = xml.dom.minidom.parse(path+word)
         collection = DOMTree.documentElement
@@ -62,7 +62,7 @@ def get_test(path,test):
             #assert js_data['position'] != -1
             #assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
             if js_data['position']==-1:
-                print(js_data['char'])
+                print(js_data['char'],js_data['text'],case.getAttribute('index'))
             js_data['phone'] = [[js_data['position'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data]]
             phones.add(js_data['phone'][-1][1])
             words.add(js_data['char'])
