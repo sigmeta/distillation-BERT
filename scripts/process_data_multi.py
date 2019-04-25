@@ -12,7 +12,7 @@ stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
 data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-2/"
+output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-index/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -34,8 +34,8 @@ dct={}
 
 def get_test(path,test):
     for word in os.listdir(path):
-        #if re.search('_.*\.',word).group()[1:-1] not in train_set:
-        #    continue
+        if re.search('_.*\.',word).group()[1:-1] not in train_set:
+            continue
         print("Test set processing...", word)
         DOMTree = xml.dom.minidom.parse(path+word)
         collection = DOMTree.documentElement
@@ -145,7 +145,7 @@ get_test(data_path+'TestCase/Story/',test_story)
 get_test(data_path+'TestCase/News/',test_news)
 get_test(data_path+'TestCase/ChitChat/',test_chat)
 print(dct)
-ime_words={dct[w] for w in ime_set}
+#ime_words={dct[w] for w in ime_set}
 
 print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
@@ -185,7 +185,7 @@ with open(output_path+"/test_chat.json",'w',encoding='utf8') as f:
 
 info={"words_test":sorted(list(words)),
       "words_prepared":sorted(list(dct[w] for w in train_set)),
-      "words_ime":sorted(list(ime_words)),
+      #"words_ime":sorted(list(ime_words)),
       "phones":sorted(list(phones))}
 with open(output_path+"/info.json",'w',encoding='utf8') as f:
     f.write(json.dumps(info, ensure_ascii=False))
