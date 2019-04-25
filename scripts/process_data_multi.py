@@ -46,7 +46,7 @@ def get_test(path,test):
             js_data['text'] = tokenizer.tokenize(case.getElementsByTagName("input")[0].childNodes[0].data)
             js_data['position'] = -1
             js_data['char'] = case.getAttribute('pron_polyword')
-            index = int(case.getAttribute('index'))
+            index = int(case.getAttribute('index')) if case.getAttribute('index') else 1
             count=1
             for i,w in enumerate(js_data['text']):
                 if w==js_data['char'] and count==index:
