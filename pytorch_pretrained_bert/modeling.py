@@ -577,7 +577,7 @@ class BertPreTrainedModel(nn.Module):
         # Load config
         config_file = os.path.join(serialization_dir, CONFIG_NAME)
         config = BertConfig.from_json_file(config_file)
-        config.hidden_dropout_prob=0.2
+        config.hidden_dropout_prob=0.1
         config.attention_probs_dropout_prob=0.1
         config.num_hidden_layers=12
 
@@ -848,7 +848,9 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, hybrid_mask=None):
+        if hybrid_mask is not None:
+            attention_mask=hybrid_mask[0:1]*(attention_mask.unsqueeze(1).unsqueeze(2))
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
                                        output_all_encoded_layers=False)
         prediction_scores = self.cls(sequence_output)
