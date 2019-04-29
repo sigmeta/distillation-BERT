@@ -1181,7 +1181,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         print(num_labels)
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.linear=nn.Linear(config.hidden_size,config.hidden_size)
+        #self.linear=nn.Linear(config.hidden_size,config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
 
@@ -1348,7 +1348,7 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.dropout_lstm = nn.Dropout(0.1)
-        self.bilstm = nn.LSTM(config.hidden_size, config.hidden_size//2, batch_first=True,
+        self.bilstm = nn.LSTM(config.hidden_size, config.hidden_size//2, num_layers=1, batch_first=True,
                               dropout=0, bidirectional=True)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
