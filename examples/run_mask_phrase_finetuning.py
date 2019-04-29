@@ -434,6 +434,9 @@ def main():
                         help = "Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
                         "0 (default value): dynamic loss scaling.\n"
                         "Positive power of 2: static loss scaling value.\n")
+    parser.add_argument("--hybrid_attention",
+                        action='store_true',
+                        help="Whether to use hybrid attention")
 
     args = parser.parse_args()
 
@@ -526,6 +529,24 @@ def main():
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
 
+    if args.hybrid_attention:
+        max_seq_length=args.max_seq_length
+        attention_mask = torch.ones(12, max_seq_length, max_seq_length, dtype=torch.long)
+        # left attention
+        attention_mask[:2, :, :] = torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
+        # right attention
+        attention_mask[2:4, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
+        # local attention, window size = 3
+        attention_mask[4:6, :, :] = torch.triu(
+            torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
+        # local attention, window size = 5
+        attention_mask[6:8, :, :] = torch.triu(
+            torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 2), -2)
+        attention_mask = torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
+        attention_mask = attention_mask.to(device)
+    else:
+        attention_mask=None
+
     global_step = 0
     if args.do_train:
         logger.info("***** Running training *****")
@@ -548,7 +569,7 @@ def main():
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, lm_label_ids = batch
-                loss = model(input_ids, segment_ids, input_mask, lm_label_ids)
+                loss = model(input_ids, segment_ids, input_mask, lm_label_ids, hybrid_mask=attention_mask)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
