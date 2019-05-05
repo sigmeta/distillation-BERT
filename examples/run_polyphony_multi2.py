@@ -332,7 +332,7 @@ def main():
                         default="",
                         type=str,
                         help="Where to load state dict instead of using Google pre-trained model")
-    parser.add_argument("--no_pretrained",
+    parser.add_argument("--no_pretrain",
                         default="",
                         action='store_true',
                         help="Whether not to use pretrained model")
