@@ -413,9 +413,11 @@ def main():
             raise ValueError(
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
     elif args.no_pretrain:
+        os.makedirs(args.output_dir, exist_ok=True)
         if not args.config_path:
             raise ValueError("Config file is needed when not using the pretrained model")
         config=BertConfig(args.config_path)
+        logger.info("Training without pretrained BERT, loading BERT config from "+args.config_path)
         model = BertForPolyphonyMulti(config, num_labels=num_labels)
     else:
         os.makedirs(args.output_dir, exist_ok=True)
