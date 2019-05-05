@@ -116,7 +116,7 @@ class DataProcessor(object):
         return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, quiet=False):
     """Loads a data file into a list of `InputBatch`s."""
 
     label_map = {label: i for i, label in enumerate(label_list)}
@@ -190,7 +190,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         char = example.char
 
-        if ex_index < 5:
+        if ex_index < 5 and not quiet:
             logger.info("*** Example ***")
             logger.info("guid: %s" % (example.guid))
             logger.info("tokens: %s" % " ".join(
@@ -656,7 +656,7 @@ def main():
 
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features, masks = convert_examples_to_features(
-            eval_examples, label_list, args.max_seq_length, tokenizer)
+            eval_examples, label_list, args.max_seq_length, tokenizer, quiet=True)
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None

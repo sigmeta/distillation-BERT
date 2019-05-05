@@ -36,6 +36,7 @@ from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 from torch.utils.data import Dataset
 import jieba
 import pkuseg
+from tensorboardX import SummaryWriter
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -549,6 +550,7 @@ def main():
 
     global_step = 0
     if args.do_train:
+        writer = SummaryWriter(log_dir=os.environ['HOME'])
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_dataset))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -563,6 +565,7 @@ def main():
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
+        tr_loss_1000 = 0
         for ep in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
@@ -579,6 +582,7 @@ def main():
                 else:
                     loss.backward()
                 tr_loss += loss.item()
+                tr_loss_1000 += loss.item()
                 nb_tr_examples += input_ids.size(0)
                 nb_tr_steps += 1
                 if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -591,6 +595,18 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
+                # log the training loss for every 1000 steps
+                if global_step%1000==999:
+                    writer.add_scalar('data/loss', tr_loss_1000/1000, global_step)
+                    logger.info("training steps: %s", global_step)
+                    logger.info("training loss per 1000: %s", tr_loss_1000/1000)
+                    tr_loss_1000=0
+                # save the checkpoint for every 10000 steps
+                if global_step%10000==0:
+                    model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+                    output_model_file = os.path.join(args.output_dir, "pytorch_model_checkpoints_" + str(global_step) + ".bin")
+                    if args.do_train:
+                        torch.save(model_to_save.state_dict(), output_model_file)
             model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
             output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_"+str(ep))
             if args.do_train:
