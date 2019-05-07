@@ -8,8 +8,8 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
 
-data_path="/hdfs/ipgsp/t-hasu/ppdata/en-US/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/en-79/"
+data_path="/hdfs/ipgsp/t-hasu/polyphone/ppdata/en-US/"
+output_path="/hdfs/ipgsp/t-hasu/polyphone/ppdata/en-79/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -45,8 +45,8 @@ def get_test(path):
             # get the pronunciation
             for i, w in enumerate(si.getElementsByTagName("w")):
                 js_data['text'] = js_data['text'] + w.getAttribute('v') + ' '
-                if w.getAttribute('v') == char:
-                    pho = js_data['char'] + '\t' + w.getAttribute('p')
+                if w.getAttribute('v').lower() == char:
+                    pho = js_data['char'] + '\t' + w.getAttribute('p').strip()
             if pho == '_':  # wrong case
                 print(js_data['text'])
                 continue
@@ -91,8 +91,8 @@ def get_train(path):
             # get the pronunciation
             for i,w in enumerate(si.getElementsByTagName("w")):
                 js_data['text']=js_data['text']+w.getAttribute('v')+' '
-                if w.getAttribute('v') == char:
-                    pho=js_data['char'] + '\t' + w.getAttribute('p')
+                if w.getAttribute('v').lower() == char:
+                    pho=js_data['char'] + '\t' + w.getAttribute('p').strip()
             if pho=='_': # wrong case
                 print(js_data['text'])
                 continue
@@ -116,14 +116,13 @@ def get_train(path):
 
 # test
 get_test(data_path)
-print(dct)
 
-print(len(phones),sorted(list(phones)))
+print("test phones",len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
 # train
 get_train(data_path)
-print(len(phones),sorted(list(phones)))
+print("train phones",len(phones),sorted(list(phones)))
 phones_train=phones.copy()
 
 print(sorted(list(phones_train-phones_test)))
@@ -136,11 +135,11 @@ print(len(train),len(test))
 with open(output_path+"/train.json",'w',encoding='utf8') as f:
     f.write(json.dumps(train, ensure_ascii=False))
 
-with open(output_path+"/test.json",'w',encoding='utf8') as f:
+with open(output_path+"/test_story.json",'w',encoding='utf8') as f:
     f.write(json.dumps(test, ensure_ascii=False))
 
 info={"words_test":sorted(list(words)),
-      "words_prepared":sorted(list(dct[w] for w in train_set)),
+      "words_prepared":sorted(list(train_set)),
       #"words_ime":sorted(list(ime_words)),
       "phones":sorted(list(phones))}
 with open(output_path+"/info.json",'w',encoding='utf8') as f:
