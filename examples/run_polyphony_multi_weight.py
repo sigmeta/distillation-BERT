@@ -122,12 +122,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     label_map = {label: i for i, label in enumerate(label_list)}
     label_map['_'] = -1
     label_count = [0]*len(label_list)
-    label_word = {label[0]: [] for label in label_list}
+    label_word = {label.split('\t')[0]: [] for label in label_list}
     for label in label_list:
-        label_word[label[0]].append(label_map[label])
+        label_word[label.split('\t')[0]].append(label_map[label])
     masks = torch.ones((len(label_list), len(label_list))).byte()
     for i, label in enumerate(label_list):
-        masks[i, label_word[label[0]]] = 0
+        masks[i, label_word[label.split('\t')[0]]] = 0
     masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
     # print(masks.size(),masks)
     features = []

@@ -20,6 +20,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse
 import logging
 import os
+import re
 import random
 from io import open
 
@@ -34,7 +35,6 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 from torch.utils.data import Dataset
-import jieba
 import pkuseg
 from tensorboardX import SummaryWriter
 
@@ -438,6 +438,9 @@ def main():
     parser.add_argument("--hybrid_attention",
                         action='store_true',
                         help="Whether to use hybrid attention")
+    parser.add_argument("--continue_training",
+                        action='store_true',
+                        help="Continue training from a checkpoint")
 
     args = parser.parse_args()
 
@@ -468,7 +471,7 @@ def main():
     if not args.do_train:
         raise ValueError("Training is currently the only implemented execution option. Please set `do_train`.")
 
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
+    if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and not args.continue_training:
         raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -549,7 +552,29 @@ def main():
         attention_mask=None
 
     global_step = 0
+    epoch_start = 0
     if args.do_train:
+        if args.continue_training:
+            # if checkpoint file exists, find the last checkpoint
+            if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
+                all_cp = os.listdir(args.output_dir)
+                steps = [int(re.search('_\d+', cp).group()[1:]) for cp in all_cp if re.search('_\d+', cp)]
+                if len(steps) == 0:
+                    raise ValueError("No existing checkpoint. Please do not use --continue_training.")
+                max_step = max(steps)
+                # load checkpoint
+                checkpoint = torch.load(os.path.join(args.output_dir, 'checkpoint_' + str(max_step) + '.pt'))
+                logger.info("***** Loading checkpoint *****")
+                logger.info("  Num steps = %d", checkpoint['global_step'])
+                logger.info("  Num epoch = %d", checkpoint['epoch'])
+                logger.info("  Loss = %d, %d", checkpoint['loss'], checkpoint['loss_now'])
+                model.load_state_dict(checkpoint['model'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                global_step=checkpoint['global_step']
+                epoch_start=checkpoint['epoch']
+            else:
+                raise ValueError("No existing checkpoint. Please do not use --continue_training.")
+
         writer = SummaryWriter(log_dir=os.environ['HOME'])
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_dataset))
@@ -566,7 +591,7 @@ def main():
 
         model.train()
         tr_loss_1000 = 0
-        for ep in trange(int(args.num_train_epochs), desc="Epoch"):
+        for ep in trange(epoch_start, int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -604,9 +629,12 @@ def main():
                 # save the checkpoint for every 10000 steps
                 if global_step%10000==0:
                     model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
-                    output_model_file = os.path.join(args.output_dir, "pytorch_model_checkpoints_" + str(global_step) + ".bin")
+                    output_file = os.path.join(args.output_dir, "checkpoints_" + str(global_step) + ".pt")
+                    checkpoint = {'model': model_to_save.state_dict(), 'optimizer': optimizer.state_dict(),
+                                  'epoch': ep, 'global_step': global_step, 'loss': tr_loss / nb_tr_steps,
+                                  'loss_now': tr_loss_1000}
                     if args.do_train:
-                        torch.save(model_to_save.state_dict(), output_model_file)
+                        torch.save(checkpoint, output_file)
             model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
             output_model_file = os.path.join(args.output_dir, "pytorch_model.bin_"+str(ep))
             if args.do_train:
