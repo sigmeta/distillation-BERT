@@ -139,17 +139,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     # print(masks.size(),masks)
 
     # hybrid attention
-    attention_mask=torch.ones(12,max_seq_length,max_seq_length, dtype=torch.long)
+    attention_mask = torch.ones(12, max_seq_length, max_seq_length, dtype=torch.long)
     # left attention
-    attention_mask[:1,:,:]=torch.tril(torch.ones(max_seq_length,max_seq_length, dtype=torch.long))
+    attention_mask[:2, :, :] = torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
     # right attention
-    attention_mask[1:2, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
+    attention_mask[2:4, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
     # local attention, window size = 3
-    attention_mask[2:3, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
+    attention_mask[4:6, :, :] = torch.triu(
+        torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
     # local attention, window size = 5
-    #attention_mask[3:4, :, :] = torch.triu(torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 5), -5)
-    attention_mask=torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
-
+    attention_mask[6:8, :, :] = torch.triu(
+        torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 2), -2)
+    attention_mask = torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
 
     features = []
     for (ex_index, example) in enumerate(examples):
