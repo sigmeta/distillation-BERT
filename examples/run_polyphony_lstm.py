@@ -118,16 +118,22 @@ class DataProcessor(object):
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
+    # Old chinese data does not have '\t'. This is for adaption.
+    for i in range(len(label_list)):
+        if '\t' not in label_list[i]:
+            label_list[i]=label_list[i][0]+'\t'+label_list[i][1:]
 
     label_map = {label: i for i, label in enumerate(label_list)}
     label_map['_'] = -1
     label_count = [0]*len(label_list)
-    label_word = {label[0]: [] for label in label_list}
+
+    # label mask (mask the classes which are not candidates)
+    label_word = {label.split('\t')[0]: [] for label in label_list}
     for label in label_list:
-        label_word[label[0]].append(label_map[label])
+        label_word[label.split('\t')[0]].append(label_map[label])
     masks = torch.ones((len(label_list), len(label_list))).byte()
     for i, label in enumerate(label_list):
-        masks[i, label_word[label[0]]] = 0
+        masks[i, label_word[label.split('\t')[0]]] = 0
     masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
     # print(masks.size(),masks)
     features = []
@@ -171,7 +177,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         for i, l in example.label:
             try:
-                assert tokens[i + 1] == l[0]
+                if '\t' not in l:
+                    l=l[0]+'\t'+l[1:]
+                assert tokens[i + 1] == l.split('\t')[0]
             except Exception as e:
                 print(e)
                 print(tokens, i, l)
