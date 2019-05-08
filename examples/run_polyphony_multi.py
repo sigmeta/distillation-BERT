@@ -193,6 +193,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         for i, l in example.label:
             try:
+                if '\t' not in l:
+                    l=l[0]+'\t'+l[1:]
                 assert tokens[i + 1] == l.split('\t')[0]
             except Exception as e:
                 print(e)
