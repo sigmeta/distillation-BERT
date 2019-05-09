@@ -11,8 +11,8 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=Tru
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
-data_path="/hdfs/ipgsp/t-hasu/ppdata/zh-CN/"
-output_path="/hdfs/ipgsp/t-hasu/ppdata/data-79-index/"
+data_path="/blob/xuta/speech/tts/t-hasu/ppdata/Polyphony/data/zh-CN/"
+output_path="/blob/xuta/speech/tts/t-hasu/ppdata/data-200-index/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
 phones=set()
@@ -20,11 +20,12 @@ train=[]
 test_story=[]
 test_news=[]
 test_chat=[]
-max_length_cut=80
+max_length_cut=64
+max_length=126
 words=set()
 words_train=set()
-test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/Story")])
-train_set=set(os.listdir(data_path+"Annotation"))
+test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/Story")])
+train_set=set([p for p in os.listdir(data_path+"Annotation") if os.path.exists(data_path+"Annotation/"+p+"/trainingScript")])
 ime_set=test_set-train_set
 print(train_set)
 assert not train_set-test_set
@@ -65,7 +66,7 @@ def get_test(path,test):
             #assert js_data['text'][js_data['position']] == case.getAttribute('pron_polyword')
             if js_data['position']==-1:
                 print(js_data['char'],js_data['text'],case.getAttribute('index'))
-            js_data['phone'] = [[js_data['position'], js_data['char'] + case.getElementsByTagName("part")[0].childNodes[0].data]]
+            js_data['phone'] = [[js_data['position'], js_data['char']+'\t' + case.getElementsByTagName("part")[0].childNodes[0].data]]
             phones.add(js_data['phone'][-1][1])
             words.add(js_data['char'])
             #js_data['text']=' '.join(js_data['text'])
@@ -89,7 +90,7 @@ def get_train(path, word):
         for i,w in enumerate(si.getElementsByTagName("w")):
             js_data['text']+=w.getAttribute('v')
             if w.getAttribute('v') == char:
-                pho=js_data['char'] + w.getAttribute('p')
+                pho=js_data['char']+'\t' + w.getAttribute('p')
         if pho=='_': # wrong case
             print(js_data['text'])
             continue
@@ -110,40 +111,11 @@ def get_train(path, word):
         #js_data['text'] = ' '.join(js_data['text'])
         train.append(js_data)
 
-def get_train_ime(path,ime_words,ime_len=1800000):
-    with open(path,encoding='utf8') as f:
-        for i,line in enumerate(f):
-            if i%1000000==0:
-                print(i)
-            if i>=ime_len:
-                break
-            if i%4 == 0:
-                js_data = {}
-                js_data['text'] = tokenizer.tokenize(line)
-                js_data['position'] = -1
-                js_data['char'] = '_'
-                js_data['phone'] = []
-            if i%4==1:
-                phones_list=line.strip().split('\t')
-                texts_list=js_data['text']
-                if len(phones_list)!=len(texts_list):
-                    print(texts_list,phones_list)
-                    continue
-                for j in range(len(texts_list)):
-                    if j<126 and texts_list[j] in ime_words:
-                        words_train.add(texts_list[j])
-                        js_data['phone'].append([j,texts_list[j]+phones_list[j]])
-                        phones.add(texts_list[j]+phones_list[j])
-                        js_data['position'] = j
-            if i%4==2:
-                if js_data['phone']:
-                    train.append(js_data)
-
 
 # test
-get_test(data_path+'TestCase/Story/',test_story)
-get_test(data_path+'TestCase/News/',test_news)
-get_test(data_path+'TestCase/ChitChat/',test_chat)
+get_test(data_path+'TestCase/BeforeToneChange/Story/',test_story)
+get_test(data_path+'TestCase/BeforeToneChange/News/',test_news)
+get_test(data_path+'TestCase/BeforeToneChange/ChitChat/',test_chat)
 print(dct)
 #ime_words={dct[w] for w in ime_set}
 
