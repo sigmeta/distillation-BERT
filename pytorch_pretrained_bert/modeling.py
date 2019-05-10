@@ -579,7 +579,7 @@ class BertPreTrainedModel(nn.Module):
         config = BertConfig.from_json_file(config_file)
         config.hidden_dropout_prob=0.1
         config.attention_probs_dropout_prob=0.1
-        config.num_hidden_layers=12
+        #config.num_hidden_layers=12
 
         logger.info("Model config {}".format(config))
         # Instantiate model.
