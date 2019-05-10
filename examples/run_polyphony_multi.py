@@ -26,6 +26,7 @@ import sys
 import json
 import re
 import math
+import collections
 
 import numpy as np
 import torch
@@ -448,6 +449,9 @@ def main():
         os.makedirs(args.output_dir, exist_ok=True)
         if args.state_dir and os.path.exists(args.state_dir):
             state_dict=torch.load(args.state_dir)
+            if isinstance(state_dict,dict) or isinstance(state_dict,collections.OrderedDict):
+                assert 'model' in state_dict
+                state_dict=state_dict['model']
             print("Using my own BERT state dict.")
         elif args.state_dir and not os.path.exists(args.state_dir):
             print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
