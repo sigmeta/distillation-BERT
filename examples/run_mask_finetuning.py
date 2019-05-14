@@ -538,7 +538,7 @@ def main():
                 logger.info("  Num steps = %d", checkpoint['global_step'])
                 logger.info("  Num epoch = %d", checkpoint['epoch'])
                 logger.info("  Loss = %d, %d", checkpoint['loss'], checkpoint['loss_now'])
-                model.load_state_dict(checkpoint['model'])
+                model.module.load_state_dict(checkpoint['model'])
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 global_step=checkpoint['global_step']
                 epoch_start=checkpoint['epoch']
