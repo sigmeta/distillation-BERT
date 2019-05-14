@@ -512,7 +512,7 @@ def main():
                     raise ValueError("No existing checkpoint. Please do not use --continue_training.")
                 max_step = max(steps)
                 # load checkpoint
-                checkpoint = torch.load(os.path.join(args.output_dir, 'checkpoint_' + str(max_step) + '.pt'))
+                checkpoint = torch.load(os.path.join(args.output_dir, 'checkpoints_' + str(max_step) + '.pt'))
                 logger.info("***** Loading checkpoint *****")
                 logger.info("  Num steps = %d", checkpoint['global_step'])
                 logger.info("  Num epoch = %d", checkpoint['epoch'])
