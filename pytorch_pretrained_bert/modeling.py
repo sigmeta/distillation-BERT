@@ -1379,6 +1379,91 @@ class BertForPolyphonyMultiLSTM(BertPreTrainedModel):
             return logits
 
 
+class PolyphonyLSTM(BertPreTrainedModel):
+    """BERT model for classification.
+    This module is composed of the BERT model with a linear layer on top of
+    the output of the polyphony tokens.
+
+    Params:
+        `config`: a BertConfig class instance with the configuration to build a new model.
+        `num_labels`: the number of classes for the classifier. Default = 2.
+
+    Inputs:
+        `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
+            with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
+            `extract_features.py`, `run_classifier.py` and `run_squad.py`)
+        `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
+            types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
+            a `sentence B` token (see BERT paper for more details).
+        `attention_mask`: an optional torch.LongTensor of shape [batch_size, sequence_length] with indices
+            selected in [0, 1]. It's a mask to be used if the input sequence length is smaller than the max
+            input sequence length in the current batch. It's the mask that we typically use for attention when
+            a batch has varying length sentences.
+        `labels`: labels for the classification output: torch.LongTensor of shape [batch_size, sequence_length]
+            with indices selected in [0, ..., num_labels]. If label==-1, it means it is not polyphony token.
+
+    Outputs:
+        if `labels` is not `None`:
+            Outputs the CrossEntropy classification loss of the output with the labels.
+        if `labels` is `None`:
+            Outputs the classification logits of shape [batch_size, num_labels].
+
+    Example usage:
+    ```python
+    # Already been converted into WordPiece token ids
+    input_ids = torch.LongTensor([[31, 51, 99], [15, 5, 0]])
+    input_mask = torch.LongTensor([[1, 1, 1], [1, 1, 0]])
+    token_type_ids = torch.LongTensor([[0, 0, 1], [0, 1, 0]])
+
+    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    num_labels = 2
+
+    model = BertForSequenceClassification(config, num_labels)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_labels):
+        super(PolyphonyLSTM, self).__init__(config)
+        self.num_labels = num_labels
+        self.hidden_size=config.hidden_size
+        print(num_labels)
+        self.embed=nn.Embedding(config.vocab_size,config.hidden_size,padding_idx=-1)
+        #self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.bilstm = nn.LSTM(config.hidden_size, config.hidden_size//2, num_layers=1, batch_first=True,
+                              dropout=0, bidirectional=True)
+        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        #self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None, cal_loss=True, weight=None):
+        #sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        #hidden = (torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)),
+        #          torch.autograd.Variable(torch.zeros(2, input_ids.size()[0], self.hidden_size)))
+        embed_output=self.embed(input_ids)
+        #output = self.dropout(embed_output)
+        output,_ = self.bilstm(embed_output)
+        output = self.dropout(output)
+        logits = self.classifier(output)
+        #print(logit_masks.size(),labels.size())
+        if logit_masks is not None:
+            logit_masks=logit_masks[0]
+            for i in range(logits.size()[0]):
+                for j in range(logits.size()[1]):
+                    if labels[i,j]!=-1:
+                        logits[i,j]=logits[i,j].masked_fill(logit_masks[labels[i,j]],value=torch.tensor(float('-inf')))
+
+        if weight is not None:
+            weight=weight[0]
+        if cal_loss:
+            loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            return loss
+        else:
+            return logits
+
+
 class BertForPolyphonyMultiLSTMLocal(BertPreTrainedModel):
     """BERT model for classification.
     This module is composed of the BERT model with a linear layer on top of
