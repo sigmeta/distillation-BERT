@@ -148,9 +148,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     # local attention, window size = 3
     attention_mask[4:6, :, :] = torch.triu(
         torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
-    # local attention, window size = 5
-    attention_mask[6:8, :, :] = torch.triu(
-        torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 2), -2)
     attention_mask = torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
 
     features = []

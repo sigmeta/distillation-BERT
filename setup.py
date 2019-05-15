@@ -54,7 +54,8 @@ setup(
                       'boto3',
                       'requests',
                       'tqdm',
-                      'regex'],
+                      'regex',
+                      'tensorboardX'],
     entry_points={
       'console_scripts': [
         "pytorch_pretrained_bert=pytorch_pretrained_bert.__main__:main",
