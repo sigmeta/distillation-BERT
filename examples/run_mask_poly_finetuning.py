@@ -585,8 +585,6 @@ def main():
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-                if step<global_step%len(train_dataloader):
-                    continue
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, lm_label_ids = batch
                 loss = model(input_ids, segment_ids, input_mask, lm_label_ids, hybrid_mask=attention_mask)

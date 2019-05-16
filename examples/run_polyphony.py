@@ -24,6 +24,9 @@ import os
 import random
 import sys
 import json
+import re
+import math
+import collections
 
 import numpy as np
 import torch
@@ -117,17 +120,36 @@ class DataProcessor(object):
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
+    # Old chinese data does not have '\t'. This is for adaption.
+    for i in range(len(label_list)):
+        if '\t' not in label_list[i]:
+            label_list[i]=label_list[i][0]+'\t'+label_list[i][1:]
 
     label_map = {label: i for i, label in enumerate(label_list)}
     label_map['_'] = -1
-    label_word = {label[0]: [] for label in label_list}
+    label_count = [0]*len(label_list)
+
+    # label mask (mask the classes which are not candidates)
+    label_word = {label.split('\t')[0]: [] for label in label_list}
     for label in label_list:
-        label_word[label[0]].append(label_map[label])
+        label_word[label.split('\t')[0]].append(label_map[label])
     masks = torch.ones((len(label_list), len(label_list))).byte()
     for i, label in enumerate(label_list):
-        masks[i, label_word[label[0]]] = 0
+        masks[i, label_word[label.split('\t')[0]]] = 0
     masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
     # print(masks.size(),masks)
+
+    # hybrid attention
+    attention_mask = torch.ones(12, max_seq_length, max_seq_length, dtype=torch.long)
+    # left attention
+    attention_mask[:2, :, :] = torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
+    # right attention
+    attention_mask[2:4, :, :] = torch.triu(torch.ones(max_seq_length, max_seq_length, dtype=torch.long))
+    # local attention, window size = 3
+    attention_mask[4:6, :, :] = torch.triu(
+        torch.tril(torch.ones(max_seq_length, max_seq_length, dtype=torch.long), 1), -1)
+    attention_mask = torch.cat([attention_mask.unsqueeze(0) for _ in range(8)])
+
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 100000 == 0:
@@ -167,14 +189,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
 
-        for i, l in example.label[-1:]:
+        for i, l in example.label:
             try:
-                assert tokens[i + 1] == l[0]
+                if '\t' not in l:
+                    l=l[0]+'\t'+l[1:]
+                assert tokens[i + 1] == l.split('\t')[0]
             except Exception as e:
                 print(e)
                 print(tokens, i, l)
                 continue
-            label_ids[i + 1] = label_map[l]
+            else:
+                label_ids[i + 1] = label_map[l]
+                label_count[label_map[l]]+=1
         # Zero-pad up to the sequence length.
         padding = [0] * (max_seq_length - len(input_ids))
         input_ids += padding
@@ -187,7 +213,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert label_pos < max_seq_length
         # assert tokens[label_pos]==example.label[-1][1][0]
 
+        #polyphony character
         char = example.char
+
+
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -206,7 +235,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           label_ids=label_ids,
                           label_pos=label_pos,
                           char=char))
-    return features, masks
+    # classification weight, for balancing the classes
+    weight = [(max(label_count) / (lc + 100))**1 for lc in label_count]
+    print(weight)
+    weight = torch.FloatTensor([weight] * 8)
+    return features, masks, weight, attention_mask
 
 
 def accuracy(out, labels):
@@ -327,6 +360,16 @@ def main():
     parser.add_argument("--eval_every_epoch",
                         action='store_true',
                         help="Whether to evaluate for every epoch")
+    parser.add_argument("--use_weight",
+                        action='store_true',
+                        help="Whether to use class-balancing weight")
+    parser.add_argument("--hybrid_attention",
+                        action='store_true',
+                        help="Whether to use hybrid attention")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -383,11 +426,16 @@ def main():
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
                                                                    'distributed_{}'.format(args.local_rank))
+    max_epoch = -1
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train:
-        #raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME)):
-            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-            output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        files = os.listdir(args.output_dir)
+        for fname in files:
+            if re.search(WEIGHTS_NAME, fname) and fname != WEIGHTS_NAME:
+                max_epoch = max(max_epoch, int(fname.split('_')[-1]))
+        if os.path.exists(os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))):
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
             model = BertForPolyphonyMulti(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
@@ -396,8 +444,20 @@ def main():
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
     else:
         os.makedirs(args.output_dir, exist_ok=True)
+        if args.state_dir and os.path.exists(args.state_dir):
+            state_dict=torch.load(args.state_dir)
+            if isinstance(state_dict,dict) or isinstance(state_dict,collections.OrderedDict):
+                assert 'model' in state_dict
+                state_dict=state_dict['model']
+            print("Using my own BERT state dict.")
+        elif args.state_dir and not os.path.exists(args.state_dir):
+            print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
+            state_dict=None
+        else:
+            state_dict=None
         model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
+                                                  state_dict=state_dict,
                                                   num_labels=num_labels)
     if args.fp16:
         model.half()
@@ -442,19 +502,31 @@ def main():
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_optimization_steps)
-    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME)):
-        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME)
+    if os.path.exists(os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))):
+        output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME+'_'+str(max_epoch))
         optimizer.load_state_dict(torch.load(output_optimizer_file))
 
     global_step = 0
     nb_tr_steps = 0
     tr_loss = 0
     if args.do_train:
-        train_features, masks = convert_examples_to_features(
+        train_features, masks, weight, hybrid_mask = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
+        if args.eval_every_epoch:
+            eval_examples = processor.get_dev_examples(args.data_dir)
+            eval_features, masks, weight, hybrid_mask = convert_examples_to_features(
+                eval_examples, label_list, args.max_seq_length, tokenizer)
+
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
+        if not args.use_weight:
+            weight=None
+        if args.hybrid_attention:
+            hybrid_mask = hybrid_mask.to(device)
+        else:
+            hybrid_mask=None
+        print(weight)
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -478,7 +550,7 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
                 # print(masks.size())
-                loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
+                loss = model(input_ids, input_mask, label_ids, logit_masks=masks, weight=weight, hybrid_mask=hybrid_mask)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
@@ -522,9 +594,11 @@ def main():
                 model_eval.load_state_dict(torch.load(output_model_file))
                 model_eval.to(device)
 
-                eval_examples = processor.get_dev_examples(args.data_dir)
-                eval_features, masks = convert_examples_to_features(
-                    eval_examples, label_list, args.max_seq_length, tokenizer)
+                if args.hybrid_attention:
+                    hybrid_mask = hybrid_mask.to(device)
+                else:
+                    hybrid_mask=None
+
                 if args.no_logit_mask:
                     print("Remove logit mask")
                     masks = None
@@ -555,8 +629,8 @@ def main():
                     label_ids = label_ids.to(device)
                     label_poss = label_poss.to(device)
                     with torch.no_grad():
-                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks)
-                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                        tmp_eval_loss = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                        logits = model_eval(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
                     # print(logits.size())
                     logits = logits.detach().cpu().numpy()
                     label_ids = label_ids.to('cpu').numpy()
@@ -619,8 +693,13 @@ def main():
         model.to(device)
 
         eval_examples = processor.get_dev_examples(args.data_dir)
-        eval_features, masks = convert_examples_to_features(
+        eval_features, masks, weight, hybrid_mask = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
+
+        if args.hybrid_attention:
+            hybrid_mask=hybrid_mask.to(device)
+        else:
+            hybrid_mask=None
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
@@ -653,8 +732,8 @@ def main():
             label_poss = label_poss.to(device)
 
             with torch.no_grad():
-                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks)
-                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False)
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
             # print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
