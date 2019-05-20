@@ -861,12 +861,12 @@ class BertForPPL(BertPreTrainedModel):
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
 
         if masked_lm_labels is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-1)
+            loss_fct = CrossEntropyLoss(ignore_index=0)
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
             total_loss = masked_lm_loss
             return total_loss
         else:
-            loss_fct = CrossEntropyLoss(ignore_index=-1)
+            loss_fct = CrossEntropyLoss(ignore_index=0)
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), input_ids.view(-1))
             total_loss = masked_lm_loss
             return total_loss

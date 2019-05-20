@@ -39,18 +39,19 @@ logger = logging.getLogger(__name__)
 
 class InputExample(object):
 
-    def __init__(self, unique_id, text_a, text_b):
+    def __init__(self, unique_id, text_a, text_b,labels):
         self.unique_id = unique_id
         self.text_a = text_a
         self.text_b = text_b
+        self.labels=labels
 
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, unique_id, tokens, input_ids, input_mask, input_type_ids):
+    def __init__(self, unique_id, target_ids, input_ids, input_mask, input_type_ids):
         self.unique_id = unique_id
-        self.tokens = tokens
+        self.target_ids = target_ids
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.input_type_ids = input_type_ids
@@ -64,6 +65,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
 
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text_a)
+        labels=tokenizer.tokenize(example.labels)
 
         tokens_b = None
         if example.text_b:
@@ -78,6 +80,8 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             # Account for [CLS] and [SEP] with "- 2"
             if len(tokens_a) > seq_length - 2:
                 tokens_a = tokens_a[0:(seq_length - 2)]
+            if len(labels)>seq_length - 2:
+                labels = labels[0:(seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -99,12 +103,19 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         # the entire model is fine-tuned.
         tokens = []
         input_type_ids = []
+        targets=[]
         tokens.append("[CLS]")
+        targets.append("[CLS]")
         input_type_ids.append(0)
-        for token in tokens_a:
+        for i,token in enumerate(tokens_a):
             tokens.append(token)
             input_type_ids.append(0)
+            if labels[i]==token:
+                targets.append('[PAD]')
+            else:
+                targets.append(labels[i])
         tokens.append("[SEP]")
+        targets.append("[SEP]")
         input_type_ids.append(0)
 
         if tokens_b:
@@ -115,6 +126,8 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             input_type_ids.append(1)
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        target_ids= tokenizer.convert_tokens_to_ids(targets)
+
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
@@ -129,13 +142,14 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         assert len(input_ids) == seq_length
         assert len(input_mask) == seq_length
         assert len(input_type_ids) == seq_length
-        input_mask=torch.tensor(input_mask, dtype=torch.long).unsqueeze(1)*attention_mask.tolist()
+        #input_mask=(torch.tensor(input_mask, dtype=torch.long).unsqueeze(0)*attention_mask).tolist()
 
-        if ex_index < 5:
+        if ex_index < 1:
             logger.info("*** Example ***")
             logger.info("unique_id: %s" % (example.unique_id))
             logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            logger.info("target_ids: %s" % " ".join([str(x) for x in target_ids]))
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             logger.info(
                 "input_type_ids: %s" % " ".join([str(x) for x in input_type_ids]))
@@ -143,7 +157,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         features.append(
             InputFeatures(
                 unique_id=example.unique_id,
-                tokens=tokens,
+                target_ids=target_ids,
                 input_ids=input_ids,
                 input_mask=input_mask,
                 input_type_ids=input_type_ids))
@@ -181,12 +195,12 @@ def read_examples(input_file):
             text_b = None
             m = re.match(r"^(.*) \|\|\| (.*)$", line)
             if m is None:
-                text_a = line
+                text_a, labels = line.split('\t')
             else:
                 text_a = m.group(1)
                 text_b = m.group(2)
             examples.append(
-                InputExample(unique_id=unique_id, text_a=text_a, text_b=text_b))
+                InputExample(unique_id=unique_id, text_a=text_a, text_b=text_b, labels=labels))
             unique_id += 1
     return examples
 
@@ -252,9 +266,10 @@ def main():
 
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+    all_target_ids = torch.tensor([f.target_ids for f in features], dtype=torch.long)
     all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
 
-    eval_data = TensorDataset(all_input_ids, all_input_mask, all_example_index)
+    eval_data = TensorDataset(all_input_ids, all_input_mask, all_target_ids, all_example_index)
     if args.local_rank == -1:
         eval_sampler = SequentialSampler(eval_data)
     else:
@@ -263,11 +278,12 @@ def main():
 
     model.eval()
     with open(args.output_file, "w", encoding='utf-8') as writer:
-        for input_ids, input_mask, example_indices in eval_dataloader:
+        for input_ids, input_mask, target_ids, example_indices in eval_dataloader:
             input_ids = input_ids.to(device)
+            target_ids=target_ids.to(device)
             input_mask = input_mask.to(device)
             with torch.no_grad():
-                loss = model(input_ids, token_type_ids=None, attention_mask=input_mask)
+                loss = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
                 print(loss)
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
