@@ -64,8 +64,8 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
     attention_mask = torch.tril(torch.ones(seq_length, seq_length, dtype=torch.long),-1)+torch.triu(torch.ones(seq_length, seq_length, dtype=torch.long),1)
 
     for (ex_index, example) in enumerate(examples):
-        tokens_a = tokenizer.tokenize(example.text_a)
-        labels=tokenizer.tokenize(example.labels)
+        tokens_a = example.text_a
+        labels=example.labels
 
         tokens_b = None
         if example.text_b:
@@ -105,7 +105,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         input_type_ids = []
         targets=[]
         tokens.append("[CLS]")
-        targets.append("[CLS]")
+        targets.append("[PAD]")
         input_type_ids.append(0)
         for i,token in enumerate(tokens_a):
             tokens.append(token)
@@ -115,7 +115,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             else:
                 targets.append(labels[i])
         tokens.append("[SEP]")
-        targets.append("[SEP]")
+        targets.append("[PAD]")
         input_type_ids.append(0)
 
         if tokens_b:
@@ -144,7 +144,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         assert len(input_type_ids) == seq_length
         #input_mask=(torch.tensor(input_mask, dtype=torch.long).unsqueeze(0)*attention_mask).tolist()
 
-        if ex_index < 1:
+        if ex_index < 0:
             logger.info("*** Example ***")
             logger.info("unique_id: %s" % (example.unique_id))
             logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
@@ -153,6 +153,11 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             logger.info(
                 "input_type_ids: %s" % " ".join([str(x) for x in input_type_ids]))
+        if True:
+            logger.info("*** Example ***")
+            logger.info("unique_id: %s" % (example.unique_id))
+            logger.info("tokens: %s" % " ".join([str(x) for x in labels]))
+
 
         features.append(
             InputFeatures(
@@ -181,27 +186,48 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
-def read_examples(input_file):
+def read_examples(input_file, abbr_file, tokenizer):
     """Read a list of `InputExample`s from an input file."""
     examples = []
     unique_id = 0
+    dic={}
+    with open(abbr_file,encoding='utf8') as f:
+        js=json.loads(f.read())
+        for j in js:
+            if len(j['abbr'])>1:
+                abb=j['abbr'].lower()
+                if abb in dic:
+                    dic[abb].append(tokenizer.tokenize(j['desc']))
+                else:
+                    dic[abb]=[tokenizer.tokenize(j['desc'])]
     with open(input_file, "r", encoding='utf-8') as reader:
         while True:
+            text_b = None
             line = reader.readline()
             if not line:
                 break
             line = line.strip()
-            text_a = None
-            text_b = None
-            m = re.match(r"^(.*) \|\|\| (.*)$", line)
-            if m is None:
-                text_a, labels = line.split('\t')
-            else:
-                text_a = m.group(1)
-                text_b = m.group(2)
+            text_a = tokenizer.tokenize(line)
+            abbr_pos=-1
+            abbr=''
+            for i,t in enumerate(text_a):
+                if t in dic:
+                    print(t)
+                    abbr_pos=i
+                    abbr=t
+                    break
+            if abbr_pos==-1:
+                continue
+            labels=text_a.copy()
+            text_a[abbr_pos]='[MASK]'
             examples.append(
                 InputExample(unique_id=unique_id, text_a=text_a, text_b=text_b, labels=labels))
             unique_id += 1
+            for d in dic[abbr]:
+                examples.append(
+                    InputExample(unique_id=unique_id, text_a=text_a[:abbr_pos]+['[MASK]']*len(d)+text_a[abbr_pos+1:],
+                                 text_b=text_b, labels=labels[:abbr_pos]+d+labels[abbr_pos+1:]))
+                unique_id += 1
     return examples
 
 
@@ -211,6 +237,7 @@ def main():
     ## Required parameters
     parser.add_argument("--input_file", default=None, type=str, required=True)
     parser.add_argument("--output_file", default=None, type=str, required=True)
+    parser.add_argument("--abbr_file", default=None, type=str, required=True)
     parser.add_argument("--bert_model", default=None, type=str, required=True,
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
@@ -221,7 +248,7 @@ def main():
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences longer "
                             "than this will be truncated, and sequences shorter than this will be padded.")
-    parser.add_argument("--batch_size", default=32, type=int, help="Batch size for predictions.")
+    parser.add_argument("--batch_size", default=1, type=int, help="Batch size for predictions.")
     parser.add_argument("--local_rank",
                         type=int,
                         default=-1,
@@ -246,7 +273,7 @@ def main():
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
 
-    examples = read_examples(args.input_file)
+    examples = read_examples(args.input_file, args.abbr_file, tokenizer)
 
     features = convert_examples_to_features(
         examples=examples, seq_length=args.max_seq_length, tokenizer=tokenizer)
@@ -284,7 +311,7 @@ def main():
             input_mask = input_mask.to(device)
             with torch.no_grad():
                 loss = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
-                print(loss)
+                print(example_indices,loss)
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
                 unique_id = int(feature.unique_id)
