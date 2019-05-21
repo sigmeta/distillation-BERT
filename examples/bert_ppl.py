@@ -137,10 +137,12 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         while len(input_ids) < seq_length:
             input_ids.append(0)
             input_mask.append(0)
+            target_ids.append(0)
             input_type_ids.append(0)
 
         assert len(input_ids) == seq_length
         assert len(input_mask) == seq_length
+        assert len(target_ids) == seq_length
         assert len(input_type_ids) == seq_length
         #input_mask=(torch.tensor(input_mask, dtype=torch.long).unsqueeze(0)*attention_mask).tolist()
 
