@@ -197,7 +197,7 @@ def read_examples(input_file, abbr_file, tokenizer):
         js=json.loads(f.read())
         for j in js:
             if len(j['abbr'])>1:
-                abb=j['abbr'].lower()
+                abb=j['abbr']
                 if abb in dic:
                     dic[abb].append(tokenizer.tokenize(j['desc']))
                 else:
@@ -210,6 +210,7 @@ def read_examples(input_file, abbr_file, tokenizer):
                 break
             line = line.strip()
             text_a = tokenizer.tokenize(line)
+            text_a=line.split()
             abbr_pos=-1
             abbr=''
             for i,t in enumerate(text_a):
@@ -217,18 +218,19 @@ def read_examples(input_file, abbr_file, tokenizer):
                     print(t)
                     abbr_pos=i
                     abbr=t
-                    break
             if abbr_pos==-1:
                 continue
-            labels=text_a.copy()
-            text_a[abbr_pos]='[MASK]'
+            left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
+            right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
+            labels=left+tokenizer.tokenize(abbr)+right
+            text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
             examples.append(
-                InputExample(unique_id=unique_id, text_a=text_a, text_b=text_b, labels=labels))
+                InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
             unique_id += 1
             for d in dic[abbr]:
                 examples.append(
-                    InputExample(unique_id=unique_id, text_a=text_a[:abbr_pos]+['[MASK]']*len(d)+text_a[abbr_pos+1:],
-                                 text_b=text_b, labels=labels[:abbr_pos]+d+labels[abbr_pos+1:]))
+                    InputExample(unique_id=unique_id, text_a=left+['[MASK]']*len(d)+right,
+                                 text_b=text_b, labels=left+d+right))
                 unique_id += 1
     return examples
 
