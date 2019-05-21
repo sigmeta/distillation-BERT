@@ -196,9 +196,9 @@ def read_examples(input_file, abbr_file, tokenizer):
             if len(j['abbr'])>1:
                 abb=j['abbr']
                 if abb in dic:
-                    dic[abb].add(tokenizer.tokenize(j['desc']))
+                    dic[abb].append(tokenizer.tokenize(j['desc']))
                 else:
-                    dic[abb]={tokenizer.tokenize(j['desc'])}
+                    dic[abb]=[tokenizer.tokenize(j['desc'])]
     with open(input_file, "r", encoding='utf-8') as reader:
         while True:
             text_b = None
