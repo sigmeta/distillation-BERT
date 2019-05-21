@@ -25,13 +25,20 @@ import json
 import re
 
 import torch
-from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from pytorch_pretrained_bert.tokenization import BertTokenizer
-from pytorch_pretrained_bert.modeling import BertForPPL
+import os
+import csv
+import random
+from tqdm import tqdm, trange
 
-logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
+import numpy as np
+from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
+                              TensorDataset)
+
+from pytorch_pretrained_bert import OpenAIGPTLMHeadModel, OpenAIGPTTokenizer, OpenAIAdam, cached_path
+
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,23 +111,10 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         tokens = []
         input_type_ids = []
         targets=[]
-        tokens.append("[CLS]")
-        targets.append("[PAD]")
-        input_type_ids.append(0)
         for i,token in enumerate(tokens_a):
             tokens.append(token)
             input_type_ids.append(0)
             targets.append(labels[i])
-        tokens.append("[SEP]")
-        targets.append("[PAD]")
-        input_type_ids.append(0)
-
-        if tokens_b:
-            for token in tokens_b:
-                tokens.append(token)
-                input_type_ids.append(1)
-            tokens.append("[SEP]")
-            input_type_ids.append(1)
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
         target_ids= tokenizer.convert_tokens_to_ids(targets)
@@ -134,7 +128,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         while len(input_ids) < seq_length:
             input_ids.append(0)
             input_mask.append(0)
-            target_ids.append(0)
+            target_ids.append(-1)
             input_type_ids.append(0)
 
         assert len(input_ids) == seq_length
@@ -218,16 +212,17 @@ def read_examples(input_file, abbr_file, tokenizer):
                 continue
             left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
             right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
-            labels=['[PAD]']*len(left)+tokenizer.tokenize(abbr)+['[PAD]']*len(right)
-            text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+            tokens=left+tokenizer.tokenize(abbr)+right
+            labels=tokens[1:]
+            text=tokens[:-1]
             #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
             examples.append(
                 InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
             unique_id += 1
             for d in dic[abbr]:
-                labels = ['[PAD]'] * len(left) + d + ['[PAD]'] * len(right)
-                text = left + ['[MASK]'] * len(d) + right
-                # text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+                tokens = left + d + right
+                labels = tokens[1:]
+                text = tokens[:-1]
                 examples.append(
                     InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
                 unique_id += 1
@@ -241,9 +236,8 @@ def main():
     parser.add_argument("--input_file", default=None, type=str, required=True)
     parser.add_argument("--output_file", default=None, type=str, required=True)
     parser.add_argument("--abbr_file", default=None, type=str, required=True)
-    parser.add_argument("--bert_model", default=None, type=str, required=True,
-                        help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                             "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
+    parser.add_argument('--model_name', type=str, default='openai-gpt',
+                        help='pretrained model name')
 
     ## Other parameters
     parser.add_argument("--do_lower_case", action='store_true', help="Set this flag if you are using an uncased model.")
@@ -272,9 +266,7 @@ def main():
         torch.distributed.init_process_group(backend='nccl')
     logger.info("device: {} n_gpu: {} distributed training: {}".format(device, n_gpu, bool(args.local_rank != -1)))
 
-    layer_indexes = [int(x) for x in args.layers.split(",")]
-
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
+    tokenizer = OpenAIGPTTokenizer.from_pretrained(args.model_name)
 
     examples = read_examples(args.input_file, args.abbr_file, tokenizer)
 
@@ -285,7 +277,7 @@ def main():
     for feature in features:
         unique_id_to_feature[feature.unique_id] = feature
 
-    model = BertForPPL.from_pretrained(args.bert_model)
+    model = OpenAIGPTLMHeadModel.from_pretrained(args.model_name)
     model.to(device)
 
     if args.local_rank != -1:
@@ -313,7 +305,7 @@ def main():
             target_ids=target_ids.to(device)
             input_mask = input_mask.to(device)
             with torch.no_grad():
-                loss = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
+                loss = model(input_ids, lm_labels=target_ids)
                 print(example_indices,loss)
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
