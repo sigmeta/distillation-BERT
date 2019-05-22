@@ -193,7 +193,7 @@ def read_examples(input_file, abbr_file, tokenizer):
     with open(abbr_file,encoding='utf8') as f:
         js=json.loads(f.read())
         for j in js:
-            if len(j['abbr'])>1:
+            if len(j['abbr'])>1 and len(j['desc'].split())==1:
                 abb=j['abbr']
                 if abb in dic:
                     dic[abb].append(tokenizer.tokenize(j['desc']))
