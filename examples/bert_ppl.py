@@ -219,15 +219,17 @@ def read_examples(input_file, abbr_file, tokenizer):
             left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
             right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
             labels=['[PAD]']*len(left)+tokenizer.tokenize(abbr)+['[PAD]']*len(right)
-            text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+            #labels = left + tokenizer.tokenize(abbr) + right
             #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+            text=left+tokenizer.tokenize(abbr)+right
             examples.append(
                 InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
             unique_id += 1
             for d in dic[abbr]:
                 labels = ['[PAD]'] * len(left) + d + ['[PAD]'] * len(right)
-                text = left + ['[MASK]'] * len(d) + right
-                # text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+                #labels = left + d + right
+                #text = left + ['[MASK]'] * len(d) + right
+                text=left+d+right
                 examples.append(
                     InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
                 unique_id += 1
