@@ -47,8 +47,9 @@ logger = logging.getLogger(__name__)
 
 class InputExample(object):
 
-    def __init__(self, unique_id, text_a, text_b,labels):
+    def __init__(self, unique_id, raw_id, text_a, text_b,labels):
         self.unique_id = unique_id
+        self.raw_id=raw_id
         self.text_a = text_a
         self.text_b = text_b
         self.labels=labels
@@ -57,8 +58,9 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, unique_id, target_ids, input_ids, input_mask, input_type_ids):
+    def __init__(self, unique_id, raw_id, target_ids, input_ids, input_mask, input_type_ids):
         self.unique_id = unique_id
+        self.raw_id=raw_id
         self.target_ids = target_ids
         self.input_ids = input_ids
         self.input_mask = input_mask
@@ -157,6 +159,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             InputFeatures(
                 unique_id=example.unique_id,
                 target_ids=target_ids,
+                raw_id=example.raw_id,
                 input_ids=input_ids,
                 input_mask=input_mask,
                 input_type_ids=input_type_ids))
@@ -180,16 +183,26 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
-def read_examples(input_file, abbr_file, tokenizer):
+def read_examples(input_file, abbr_file, freq_file, tokenizer):
     """Read a list of `InputExample`s from an input file."""
     examples = []
     unique_id = 0
+    freq=set()
+    raw_id = 0
+    tlist=[]
     dic={}
+    with open(freq_file, encoding='utf8') as f:
+        for line in f:
+            t,fr=line.strip().split()
+            if int(fr)>1000000:
+                freq.add(t)
+            else:
+                break
     with open(abbr_file,encoding='utf8') as f:
         js=json.loads(f.read())
         for j in js:
             if len(j['abbr'])>1 and len(j['desc'].split())==1:
-                abb=j['abbr']
+                abb=j['abbr'].lower()
                 if abb in dic:
                     dic[abb].append(tokenizer.tokenize(j['desc']))
                 else:
@@ -204,29 +217,28 @@ def read_examples(input_file, abbr_file, tokenizer):
             abbr_pos=-1
             abbr=''
             for i,t in enumerate(text_a):
-                if t in dic:
+                if t not in freq and t.lower() in dic:
                     print(t)
                     abbr_pos=i
-                    abbr=t
-            if abbr_pos==-1:
-                continue
-            left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
-            right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
-            tokens=left+tokenizer.tokenize(abbr)+right
-            labels=tokens[1:]
-            text=tokens[:-1]
-            #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
-            examples.append(
-                InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
-            unique_id += 1
-            for d in dic[abbr]:
-                tokens = left + d + right
-                labels = tokens[1:]
-                text = tokens[:-1]
-                examples.append(
-                    InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
-                unique_id += 1
-    return examples
+                    abbr=t.lower()
+                    left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
+                    right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
+                    tokens=left+tokenizer.tokenize(abbr)+right
+                    labels=tokens[1:]
+                    text=tokens[:-1]
+                    #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+                    examples.append(
+                        InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
+                    unique_id += 1
+                    for d in dic[abbr]:
+                        tokens = left + d + right
+                        labels = tokens[1:]
+                        text = tokens[:-1]
+                        examples.append(
+                            InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
+                        unique_id += 1
+            raw_id += 1
+    return examples,tlist
 
 
 def main():
@@ -236,6 +248,7 @@ def main():
     parser.add_argument("--input_file", default=None, type=str, required=True)
     parser.add_argument("--output_file", default=None, type=str, required=True)
     parser.add_argument("--abbr_file", default=None, type=str, required=True)
+    parser.add_argument("--freq_file", default=None, type=str, required=True)
     parser.add_argument('--model_name', type=str, default='openai-gpt',
                         help='pretrained model name')
 
@@ -268,7 +281,7 @@ def main():
 
     tokenizer = OpenAIGPTTokenizer.from_pretrained(args.model_name)
 
-    examples = read_examples(args.input_file, args.abbr_file, tokenizer)
+    examples,tlist = read_examples(args.input_file, args.abbr_file, args.freq_file, tokenizer)
 
     features = convert_examples_to_features(
         examples=examples, seq_length=args.max_seq_length, tokenizer=tokenizer)
@@ -310,13 +323,14 @@ def main():
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
                 unique_id = int(feature.unique_id)
+                raw_id=int(feature.raw_id)
                 # feature = unique_id_to_feature[unique_id]
                 output_json = collections.OrderedDict()
-                output_json["linex_index"] = unique_id
-                all_out_features = []
-                output_json["loss"] = all_out_features
+                output_json["index"] = unique_id
+                output_json['sent_id']=raw_id
+                output_json['text']=tlist[unique_id]
+                output_json["loss"] = float(loss)
                 writer.write(json.dumps(output_json) + "\n")
-
 
 if __name__ == "__main__":
     main()
