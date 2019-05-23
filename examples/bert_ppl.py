@@ -333,7 +333,7 @@ def main():
             with torch.no_grad():
                 loss = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
                 print(example_indices,loss)
-                loss_list.append(int(loss))
+                loss_list.append(float(loss))
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
                 unique_id = int(feature.unique_id)
@@ -343,7 +343,7 @@ def main():
                 output_json["index"] = unique_id
                 output_json['sent_id']=raw_id
                 output_json['text']=tlist[unique_id]
-                output_json["loss"] = int(loss)
+                output_json["loss"] = float(loss)
                 writer.write(json.dumps(output_json) + "\n")
 
 
