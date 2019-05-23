@@ -234,7 +234,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                     #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
                     text=left+tokenizer.tokenize(abbr)+right
                     examples.append(
-                        InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels))
+                        InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
                     tlist.append(' '.join(text))
                     unique_id += 1
                     for d in dic[abbr]:
