@@ -23,6 +23,7 @@ import collections
 import logging
 import json
 import re
+import nltk
 
 import torch
 from torch.utils.data.distributed import DistributedSampler
@@ -199,8 +200,7 @@ def read_examples(input_file, abbr_file, tokenizer):
             line = reader.readline()
             if not line:
                 break
-            line = line.strip()
-            text_a=line.split()
+            text_a = nltk.word_tokenize(line)
             abbr_pos=-1
             abbr=''
             for i,t in enumerate(text_a):
