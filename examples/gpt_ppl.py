@@ -237,7 +237,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                         text = tokens[:-1]
                         examples.append(
                             InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
-                        tlist.append(' '.join(text_a[:abbr_pos] + [d] + text_a[abbr_pos + 1:]))
+                        tlist.append(' '.join(text_a[:abbr_pos] + d + text_a[abbr_pos + 1:]))
                         unique_id += 1
             raw_id += 1
     return examples,tlist
