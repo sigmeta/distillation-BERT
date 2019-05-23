@@ -226,7 +226,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 if t not in freq and t.lower() in dic:
                     print(t)
                     abbr_pos=i
-                    abbr=t
+                    abbr=t.lower()
                     left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
                     right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
                     labels=['[PAD]']*len(left)+tokenizer.tokenize(abbr)+['[PAD]']*len(right)
