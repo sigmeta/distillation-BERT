@@ -80,7 +80,7 @@ class SentProcessor(object):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        df = pd.read_csv(data_dir, delimiter='\t')
+        df = pd.read_csv(os.path.join(data_dir, "train.tsv"), delimiter='\t')
         train=[]
         for i in range(len(df)):
             train.append({'label': df.loc[i, 'sentiment'], 'text': df.loc[i, 'review']})
@@ -88,7 +88,7 @@ class SentProcessor(object):
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        df = pd.read_csv(data_dir, delimiter='\t')
+        df = pd.read_csv(os.path.join(data_dir, "test.tsv"), delimiter='\t')
         test = []
         for i in range(len(df)):
             test.append({'text': df.loc[i, 'review']})
