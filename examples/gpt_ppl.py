@@ -194,7 +194,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
     with open(freq_file, encoding='utf8') as f:
         for line in f:
             t,fr=line.strip().split()
-            if int(fr)>1000000:
+            if int(fr)>100000:
                 freq.add(t)
             else:
                 break
