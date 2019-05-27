@@ -342,7 +342,6 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    task_name = args.task_name.lower()
 
 
     processor = SentProcessor()
