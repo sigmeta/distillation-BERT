@@ -217,10 +217,10 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 continue
             left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
             right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
-            labels=['[PAD]']*len(left)+['MASK']+['[PAD]']*len(right)
+            labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
             #labels = left + tokenizer.tokenize(abbr) + right
             #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
-            text=left+['MASK']+right
+            text=left+['[MASK]']+right
             candidates=[abbr]+dic[abbr]
             examples.append(
                 InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels, candidates=candidates))
@@ -236,7 +236,7 @@ def main():
     parser.add_argument("--input_file", default=None, type=str, required=True)
     parser.add_argument("--output_file", default=None, type=str, required=True)
     parser.add_argument("--abbr_file", default=None, type=str, required=True)
-    parser.add_argument("--freq_file", default=None, type=str, required=True)
+    parser.add_argument("--freq_file", default=None, type=str, required=False)
     parser.add_argument("--bert_model", default=None, type=str, required=True,
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
