@@ -28,6 +28,7 @@ import nltk
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+from torch.nn import functional as F
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertForScore
@@ -311,6 +312,7 @@ def main():
             input_mask = input_mask.to(device)
             with torch.no_grad():
                 scores = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
+                scores=F.softmax(scores)
                 print(example_indices,scores)
 
             for b, example_index in enumerate(example_indices):

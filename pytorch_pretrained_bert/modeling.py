@@ -931,7 +931,6 @@ class BertForScore(BertPreTrainedModel):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
                                                    output_all_encoded_layers=False)
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
-        prediction_scores=functional.softmax(prediction_scores)
         score=prediction_scores[masked_lm_labels.ne(0)]
         #assert score.size(1)==1
         return score.squeeze()
