@@ -202,31 +202,40 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
         dic=json.loads(f.read())
     with open(input_file, "r", encoding='utf-8') as reader:
         while True:
-            text_b = None
-            line = reader.readline()
-            if not line:
-                break
-            text_a=line.split()
-            abbr_pos=-1
-            abbr=''
-            for i,t in enumerate(text_a):
-                if t.lower() in dic:
-                    print(t)
-                    abbr_pos=i
-                    abbr=t.lower()
-            if abbr_pos==-1:
-                continue
-            left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
-            right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
-            labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
-            #labels = left + tokenizer.tokenize(abbr) + right
-            #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
-            text=left+['[MASK]']+right
-            candidates=[abbr]+dic[abbr]
-            examples.append(
-                InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels, candidates=candidates))
-            unique_id += 1
-            tlist.append(' '.join(text))
+            if unique_id==0:
+                text=['[MASK]']
+                text_b=None
+                labels=['[MASK]']
+                candidates=[]
+                examples.append(
+                    InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels, candidates=candidates))
+                unique_id += 1
+            else:
+                text_b = None
+                line = reader.readline()
+                if not line:
+                    break
+                text_a=line.split()
+                abbr_pos=-1
+                abbr=''
+                for i,t in enumerate(text_a):
+                    if t.lower() in dic:
+                        print(t)
+                        abbr_pos=i
+                        abbr=t.lower()
+                if abbr_pos==-1:
+                    continue
+                left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
+                right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
+                labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
+                #labels = left + tokenizer.tokenize(abbr) + right
+                #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+                text=left+['[MASK]']+right
+                candidates=[abbr]+dic[abbr]
+                examples.append(
+                    InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels, candidates=candidates))
+                unique_id += 1
+                tlist.append(' '.join(text))
     return examples,tlist
 
 
@@ -318,17 +327,19 @@ def main():
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
                 unique_id = int(feature.unique_id)
-
-                # feature = unique_id_to_feature[unique_id]
-                output_json = collections.OrderedDict()
-                output_json["index"] = unique_id
-                output_json['text']=tlist[unique_id]
-                output_json["score"] = []
-                for candidate in all_candidates[unique_id]:
-                    can_ids=tokenizer.convert_tokens_to_ids(tokenizer.tokenize(candidate))
-                    score=float(scores[can_ids].mean())
-                    output_json["score"].append((candidate,score))
-                writer.write(json.dumps(output_json) + "\n")
+                if unique_id==0:
+                    score_base=scores
+                else:
+                    # feature = unique_id_to_feature[unique_id]
+                    output_json = collections.OrderedDict()
+                    output_json["index"] = unique_id
+                    output_json['text']=tlist[unique_id]
+                    output_json["score"] = []
+                    for candidate in all_candidates[unique_id]:
+                        can_ids=tokenizer.convert_tokens_to_ids(tokenizer.tokenize(candidate.lower()))
+                        score=float((scores[can_ids]/score_base[can_ids]).mean())
+                        output_json["score"].append((candidate,score))
+                    writer.write(json.dumps(output_json) + "\n")
 
 
 if __name__ == "__main__":
