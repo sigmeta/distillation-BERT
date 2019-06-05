@@ -198,11 +198,10 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
     dic={}
     freq=set()
     tlist=[]
+    alist=[]
 
     with open(abbr_file,encoding='utf8') as f:
-        js=json.loads(f.read())
-        for k in js:
-            dic[k]=[tokenizer.tokenize(t) for t in js[k]]
+        dic=json.loads(f.read())
     with open(input_file, "r", encoding='utf-8') as reader:
         while True:
             text_b = None
@@ -213,31 +212,36 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
             abbr_pos=-1
             abbr=''
             for i,t in enumerate(text_a):
-                if t not in freq and t.lower() in dic:
+                if t.lower() in dic:
                     print(t)
                     abbr_pos=i
                     abbr=t.lower()
-                    left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
-                    right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
-                    labels=['[PAD]']*len(left)+tokenizer.tokenize(abbr)+['[PAD]']*len(right)
-                    #labels = left + tokenizer.tokenize(abbr) + right
-                    #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
-                    text=left+tokenizer.tokenize(abbr)+right
-                    examples.append(
-                        InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
-                    tlist.append(' '.join(text))
-                    unique_id += 1
-                    for d in dic[abbr]:
-                        labels = ['[PAD]'] * len(left) + d + ['[PAD]'] * len(right)
-                        #labels = left + d + right
-                        #text = left + ['[MASK]'] * len(d) + right
-                        text=left+d+right
-                        examples.append(
-                            InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
-                        tlist.append(' '.join(text))
-                        unique_id += 1
+            if abbr_pos==-1:
+                continue
+            alist.append(abbr)
+            left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
+            right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
+            labels=['[PAD]']*len(left)+tokenizer.tokenize(abbr)+['[PAD]']*len(right)
+            #labels = left + tokenizer.tokenize(abbr) + right
+            #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+            text=left+tokenizer.tokenize(abbr)+right
+            examples.append(
+                InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
+            tlist.append(' '.join(text))
+            unique_id += 1
+            for d in dic[abbr]:
+                alist.append(d)
+                d=tokenizer.tokenize(d)
+                labels = ['[PAD]'] * len(left) + d + ['[PAD]'] * len(right)
+                #labels = left + d + right
+                #text = left + ['[MASK]'] * len(d) + right
+                text=left+d+right
+                examples.append(
+                    InputExample(unique_id=unique_id, raw_id=raw_id, text_a=text, text_b=text_b, labels=labels))
+                tlist.append(' '.join(text))
+                unique_id += 1
             raw_id+=1
-    return examples, tlist
+    return examples, tlist, alist
 
 
 def main():
@@ -283,7 +287,7 @@ def main():
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
 
-    examples, tlist = read_examples(args.input_file, args.abbr_file, args.freq_file, tokenizer)
+    examples, tlist, alist = read_examples(args.input_file, args.abbr_file, args.freq_file, tokenizer)
 
     features = convert_examples_to_features(
         examples=examples, seq_length=args.max_seq_length, tokenizer=tokenizer)
@@ -333,6 +337,7 @@ def main():
                 output_json["index"] = unique_id
                 output_json['sent_id']=raw_id
                 output_json['text']=tlist[unique_id]
+                output_json['expansion']=alist[unique_id]
                 output_json["loss"] = float(loss)
                 writer.write(json.dumps(output_json) + "\n")
 
