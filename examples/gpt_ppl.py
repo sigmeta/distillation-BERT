@@ -191,22 +191,10 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
     raw_id = 0
     tlist=[]
     dic={}
-    with open(freq_file, encoding='utf8') as f:
-        for line in f:
-            t,fr=line.strip().split()
-            if int(fr)>100000:
-                freq.add(t)
-            else:
-                break
     with open(abbr_file,encoding='utf8') as f:
-        js=json.loads(f.read())
-        for j in js:
-            if len(j['abbr'])>1 and len(j['desc'].split())==1:
-                abb=j['abbr'].lower()
-                if abb in dic:
-                    dic[abb].append(tokenizer.tokenize(j['desc']))
-                else:
-                    dic[abb]=[tokenizer.tokenize(j['desc'])]
+        js = json.loads(f.read())
+        for k in js:
+            dic[k] = [tokenizer.tokenize(t) for t in js[k]]
     with open(input_file, "r", encoding='utf-8') as reader:
         while True:
             text_b = None
@@ -250,7 +238,7 @@ def main():
     parser.add_argument("--input_file", default=None, type=str, required=True)
     parser.add_argument("--output_file", default=None, type=str, required=True)
     parser.add_argument("--abbr_file", default=None, type=str, required=True)
-    parser.add_argument("--freq_file", default=None, type=str, required=True)
+    parser.add_argument("--freq_file", default=None, type=str, required=False)
     parser.add_argument('--model_name', type=str, default='openai-gpt',
                         help='pretrained model name')
 

@@ -235,7 +235,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 examples.append(
                     InputExample(unique_id=unique_id, text_a=text, text_b=text_b, labels=labels, candidates=candidates))
                 unique_id += 1
-                tlist.append(' '.join(text))
+            tlist.append(' '.join(text))
     return examples,tlist
 
 
@@ -337,7 +337,9 @@ def main():
                     output_json["score"] = []
                     for candidate in all_candidates[unique_id]:
                         can_ids=tokenizer.convert_tokens_to_ids(tokenizer.tokenize(candidate.lower()))
-                        score=float((scores[can_ids]/score_base[can_ids]).mean())
+                        #score=float((scores[can_ids]/score_base[can_ids]).mean())
+                        score = float((scores[can_ids]).mean())
+                        print(candidate, tokenizer.tokenize(candidate),score)
                         output_json["score"].append((candidate,score))
                     writer.write(json.dumps(output_json) + "\n")
 
