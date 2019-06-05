@@ -24,6 +24,7 @@ import logging
 import json
 import re
 import nltk
+nltk.download('punkt')
 
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
@@ -208,7 +209,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
             line = reader.readline()
             if not line:
                 break
-            text_a=nltk.word_tokenize(line)
+            text_a=line.split()
             abbr_pos=-1
             abbr=''
             for i,t in enumerate(text_a):
