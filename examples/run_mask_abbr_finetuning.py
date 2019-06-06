@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from pytorch_pretrained_bert.modeling import BertForMaskedLM, BertConfig
+from pytorch_pretrained_bert.modeling import BertForMaskedLM
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
@@ -252,6 +252,27 @@ def random_word(tokens, tokenizer):
                 # For unknown words (should not occur with BPE vocab)
                 output_label.append(tokenizer.vocab["[UNK]"])
                 logger.warning("Cannot find token '{}' in vocab. Using [UNK] insetad".format(token))
+        elif tokens[i] in polyphones and prob<0.8:
+            prob/=0.8
+            # 45% randomly change token to mask token
+            if prob < 0.8:
+                tokens[i] = "[MASK]"
+                token_types[i] = 0
+
+            # 5% randomly change token to random token
+            elif prob < 0.9:
+                tokens[i] = random.choice(list(tokenizer.vocab.items()))[0]
+                token_types[i] = 0
+
+            # -> rest 10% randomly keep current token
+
+            # append current token to output (we will predict these later)
+            try:
+                output_label.append(tokenizer.vocab[token])
+            except KeyError:
+                # For unknown words (should not occur with BPE vocab)
+                output_label.append(tokenizer.vocab["[UNK]"])
+                logger.warning("Cannot find token '{}' in vocab. Using [UNK] insetad".format(token))
         else:
             # no masking token (will be ignored by loss function later)
             output_label.append(-1)
@@ -412,14 +433,6 @@ def main():
     parser.add_argument("--continue_training",
                         action='store_true',
                         help="Continue training from a checkpoint")
-    parser.add_argument("--no_pretrain",
-                        default="",
-                        action='store_true',
-                        help="Whether not to use pretrained model")
-    parser.add_argument("--config_path",
-                        default="",
-                        type=str,
-                        help="Where to load the config file when not using pretrained model")
 
     args = parser.parse_args()
 
@@ -468,14 +481,8 @@ def main():
         if args.local_rank != -1:
             num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
-    if args.no_pretrain:
-        if not args.config_path:
-            raise ValueError("Config file is needed when not using the pretrained model")
-        config = BertConfig(args.config_path)
-        model = BertForMaskedLM(config)
-    else:
-        # Prepare model
-        model = BertForMaskedLM.from_pretrained(args.bert_model)
+    # Prepare model
+    model = BertForMaskedLM.from_pretrained(args.bert_model)
     if args.fp16:
         model.half()
     model.to(device)
