@@ -87,7 +87,7 @@ class DataProcessor(object):
             for line in f:
                 if not line.strip():
                     continue
-                train_list.append(line.lower().split('\t'))
+                train_list.append(line.strip().lower().split('\t'))
         return self._create_examples(train_list)
 
     def get_dev_examples(self, data_dir):
@@ -98,7 +98,7 @@ class DataProcessor(object):
             for line in f:
                 if not line.strip():
                     continue
-                test_list.append(line.lower().split('\t'))
+                test_list.append(line.strip().lower().split('\t'))
         return self._create_examples(test_list)
 
     def get_test_examples(self, data_dir):
@@ -109,7 +109,7 @@ class DataProcessor(object):
             for line in f:
                 if not line.strip():
                     continue
-                test_list.append(line.lower().split('\t'))
+                test_list.append(line.strip().lower().split('\t'))
         return self._create_examples(test_list)
 
     def get_labels(self, data_dir):
