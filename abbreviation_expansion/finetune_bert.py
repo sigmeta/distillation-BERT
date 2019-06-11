@@ -165,7 +165,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         masks[i, label_word[label.split('\t')[0]]] = 0
     masks = torch.cat([masks.unsqueeze(0) for _ in range(8)])
     # print(masks.size(),masks)
-
+    bad_count=0
     features = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 100000 == 0:
@@ -174,13 +174,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens_a=tokenizer.tokenize(tokens_a)
         label_token=tokenizer.tokenize(example.label)
         position=match(tokens_a,label_token)
+        if position==None:
+            print(tokens_a,label_token)
+            bad_count+=1
+            continue
         if position>max_seq_length-2:
+            bad_count += 1
             continue
 
         # replace the expansion by its abbreviation or '[MASK]'
         replacement=tokenizer.tokenize(exab[example.label])
         #replacement=['[MASK]']
-        tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token)]
+        tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token):]
 
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
@@ -231,8 +236,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # assert tokens[label_pos]==example.label[-1][1][0]
 
         targets=[0.0]*len(label_list)
-        targets[label_map[label]]=0.9
-        targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]=0.1
+        targets[label_map[label]]=ratio
+        targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]=1-ratio
 
 
         if ex_index < 5:
@@ -254,6 +259,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     # classification weight, for balancing the classes
     weight = [(max(label_count) / (lc + 100))**1 for lc in label_count]
     print(weight)
+    print("bad cases:",bad_count)
     weight = torch.FloatTensor([weight] * 8)
     return features, masks, weight
 
