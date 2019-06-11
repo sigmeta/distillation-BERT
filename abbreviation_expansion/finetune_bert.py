@@ -36,7 +36,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
+from pytorch_pretrained_bert.modeling import BertForAbbr, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
@@ -466,7 +466,7 @@ def main():
             output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
             output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
-            model = BertForPolyphonyMulti(config, num_labels=num_labels)
+            model = BertForAbbr(config, num_labels=num_labels)
             model.load_state_dict(torch.load(output_model_file))
         else:
             raise ValueError(
@@ -484,7 +484,7 @@ def main():
             state_dict=None
         else:
             state_dict=None
-        model = BertForPolyphonyMulti.from_pretrained(args.bert_model,
+        model = BertForAbbr.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
                                                   state_dict=state_dict,
                                                   num_labels=num_labels)
@@ -618,7 +618,7 @@ def main():
 
                 # Load a trained model and config that you have fine-tuned
                 config = BertConfig(output_config_file)
-                model_eval = BertForPolyphonyMulti(config, num_labels=num_labels)
+                model_eval = BertForAbbr(config, num_labels=num_labels)
                 model_eval.load_state_dict(torch.load(output_model_file))
                 model_eval.to(device)
 
@@ -707,7 +707,7 @@ def main():
 
         # Load a trained model and config that you have fine-tuned
         config = BertConfig(output_config_file)
-        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model = BertForAbbr(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
     else:
         # model = BertForPolyphonyMulti.from_pretrained(args.bert_model, num_labels = num_labels)
@@ -718,7 +718,7 @@ def main():
         output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
         output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
         config = BertConfig(output_config_file)
-        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model = BertForAbbr(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
         model.to(device)
 

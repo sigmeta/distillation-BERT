@@ -1771,17 +1771,19 @@ class BertForAbbr(BertPreTrainedModel):
         if weight is not None:
             weight=weight[0]
         if cal_loss:
-            loss = self.compute_loss(logits,targets,labels)
+            loss = self.compute_loss(logits,targets,labels,weight=weight)
             return loss
         else:
             return logits
 
-    def compute_loss(self,logits,targets,target_mask):
+    def compute_loss(self,logits,targets,target_mask,weight=None):
         logits=logits[target_mask.ne(-1)]
         #targets=targets[target_mask.ne(-1)]
         targets=targets.squeeze().contiguous()
         lprobs=functional.log_softmax(logits)
         loss=-lprobs*targets
+        if weight is not None:
+            loss=loss*weight
         loss=loss.sum()
         return loss
 
