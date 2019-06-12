@@ -67,12 +67,13 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, label_ids, label_pos, targets):
+    def __init__(self, input_ids, input_mask, label_ids, label_pos, targets, char):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.label_id = label_ids
         self.label_pos = label_pos
         self.targets=targets
+        self.char=char
 
 
 
@@ -239,6 +240,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         targets[label_map[label]]=ratio
         targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]=1-ratio
 
+        char=label.split('\t')[0]
+
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -255,7 +258,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                           input_mask=input_mask,
                           label_ids=label_ids,
                           label_pos=label_pos,
-                          targets=targets))
+                          targets=targets,
+                          char=char))
     # classification weight, for balancing the classes
     weight = [(max(label_count) / (lc + 100))**1 for lc in label_count]
     print(weight)
@@ -447,10 +451,10 @@ def main():
     num_train_optimization_steps = None
     if args.do_train:
         train_examples = processor.get_train_examples(args.data_dir)
-        num_train_optimization_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+        num_train_optimization_steps = len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs
         if args.local_rank != -1:
-            num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
+            num_train_optimization_steps = num_train_optimization_steps / torch.distributed.get_world_size()
+        num_train_optimization_steps=math.ceil(num_train_optimization_steps)
 
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
