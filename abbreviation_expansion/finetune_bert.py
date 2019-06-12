@@ -888,6 +888,7 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list = []
+        out_list = []
         # masks = masks.to(device)
         for input_ids, input_mask, label_ids, label_poss, targets in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -905,7 +906,8 @@ def main():
             tmp_eval_accuracy = accuracy(logits, label_ids)
             tmp_out,tmp_rlist = result_list(logits, label_ids, label_poss,label_list)
             #res_list += accuracy_list(logits, label_ids, label_poss)
-            res_list+=tmp_out
+            res_list+=tmp_rlist
+            out_list+=tmp_out
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -939,11 +941,11 @@ def main():
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, "res.json")
-        output_reslist_file = os.path.join(args.output_dir, "reslist.json")
+        output_reslist_file = os.path.join(args.output_dir, "outlist.json")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False, indent=2))
         with open(output_reslist_file, "w") as f:
-            f.write(json.dumps(res_list, ensure_ascii=False, indent=2))
+            f.write(json.dumps(out_list, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
