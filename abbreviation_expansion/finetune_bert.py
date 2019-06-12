@@ -258,7 +258,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         targets=[0.0]*len(label_list)
         targets[label_map[label]]=ratio
-        targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]=1-ratio
+        targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]+=1-ratio
 
         char=label.split('\t')[0]
 
