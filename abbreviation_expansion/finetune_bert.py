@@ -309,6 +309,25 @@ def accuracy_list(out, labels, positions):
             res.append(0)
     return res
 
+def result_list(outs, labels, positions, label_list):
+    outputs = np.argmax(outs, axis=2)
+    res = []
+    out = []
+    # print(out)
+    # print(outputs)
+    for i, p in enumerate(positions):
+        # assert labels[i, p] != -1
+        if labels[i, p] == -1:
+            print(outputs[i], labels[i], positions[i])
+        # print(outputs[i,p],labels[i,p])
+        if outputs[i, p] == labels[i, p]:
+            res.append(1)
+        else:
+            res.append(0)
+        out.append(label_list[outputs[i, p]])
+
+    return out,res
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -884,7 +903,9 @@ def main():
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
-            res_list += accuracy_list(logits, label_ids, label_poss)
+            tmp_out,tmp_rlist = result_list(logits, label_ids, label_poss,label_list)
+            #res_list += accuracy_list(logits, label_ids, label_poss)
+            res_list+=tmp_out
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -917,12 +938,12 @@ def main():
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
-        output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
-        output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
+        output_acc_file = os.path.join(args.output_dir, "res.json")
+        output_reslist_file = os.path.join(args.output_dir, "reslist.json")
         with open(output_acc_file, "w") as f:
-            f.write(json.dumps(char_acc, ensure_ascii=False))
+            f.write(json.dumps(char_acc, ensure_ascii=False, indent=2))
         with open(output_reslist_file, "w") as f:
-            f.write(json.dumps(res_list, ensure_ascii=False))
+            f.write(json.dumps(res_list, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
