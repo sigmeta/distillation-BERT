@@ -39,6 +39,7 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertForAbbr, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
+from tensorboardX import SummaryWriter
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -557,6 +558,8 @@ def main():
             weight=None
         hybrid_mask=None
 
+        writer = SummaryWriter(log_dir=os.environ['HOME'])
+
         print(weight)
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
@@ -607,6 +610,9 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
+                writer.add_scalar('data/loss', loss.item(), global_step)
+            logger.info(f'Trainging loss: {tr_loss/nb_tr_steps}')
+
 
             if args.eval_every_epoch:
                 # evaluate for every epoch
