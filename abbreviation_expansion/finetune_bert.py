@@ -94,9 +94,9 @@ class DataProcessor(object):
 
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the dev set."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "test.txt")))
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "dev.txt")))
         test_list = []
-        with open(os.path.join(data_dir, "test.txt"), encoding='utf8') as f:
+        with open(os.path.join(data_dir, "dev.txt"), encoding='utf8') as f:
             for line in f:
                 if not line.strip():
                     continue
@@ -754,6 +754,94 @@ def main():
         eval_examples = processor.get_dev_examples(args.data_dir)
         eval_features, masks, weight = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer, abex, args.ratio)
+
+        hybrid_mask=None
+        if args.no_logit_mask:
+            print("Remove logit mask")
+            masks = None
+        else:
+            masks = masks.to(device)
+        chars = [f.char for f in eval_features]
+        print(len(set(chars)), sorted(list(set(chars))))
+        logger.info("***** Running evaluation *****")
+        logger.info("  Num examples = %d", len(eval_examples))
+        logger.info("  Batch size = %d", args.eval_batch_size)
+        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+        all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
+        all_targets = torch.tensor([f.targets for f in eval_features], dtype=torch.float)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss, all_targets)
+        # Run prediction for full data
+        eval_sampler = SequentialSampler(eval_data)
+        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+        model.eval()
+        eval_loss, eval_accuracy = 0, 0
+        nb_eval_steps, nb_eval_examples = 0, 0
+
+        res_list = []
+        # masks = masks.to(device)
+        for input_ids, input_mask, label_ids, label_poss, targets in tqdm(eval_dataloader, desc="Evaluating"):
+            input_ids = input_ids.to(device)
+            input_mask = input_mask.to(device)
+            label_ids = label_ids.to(device)
+            label_poss = label_poss.to(device)
+            targets = targets.to(device)
+
+            with torch.no_grad():
+                tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=None, targets=targets)
+                logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=None, targets=targets)
+            # print(logits.size())
+            logits = logits.detach().cpu().numpy()
+            label_ids = label_ids.to('cpu').numpy()
+            tmp_eval_accuracy = accuracy(logits, label_ids)
+            res_list += accuracy_list(logits, label_ids, label_poss)
+
+            eval_loss += tmp_eval_loss.mean().item()
+            eval_accuracy += tmp_eval_accuracy
+
+            nb_eval_examples += input_ids.size(0)
+            nb_eval_steps += 1
+
+        eval_loss = eval_loss / nb_eval_steps
+        eval_accuracy = eval_accuracy / nb_eval_examples
+        loss = tr_loss / nb_tr_steps if args.do_train else None
+        acc = sum(res_list) / len(res_list)
+        char_count = {k: [] for k in list(set(chars))}
+        for i, c in enumerate(chars):
+            char_count[c].append(res_list[i])
+        char_acc = {k: sum(char_count[k]) / len(char_count[k]) for k in char_count}
+
+        result = {'eval_loss': eval_loss,
+                  'eval_accuracy': eval_accuracy,
+                  'global_step': global_step,
+                  'loss': loss,
+                  'acc': acc}
+
+        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+        with open(output_eval_file, "w") as writer:
+            logger.info("***** Eval results *****")
+            for key in sorted(result.keys()):
+                logger.info("  %s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
+            for key in sorted(char_acc.keys()):
+                logger.info("  %s = %s", key, str(char_acc[key]))
+                writer.write("%s = %s\n" % (key, str(char_acc[key])))
+        print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
+
+
+    if args.do_test and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+        output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        config = BertConfig(output_config_file)
+        model = BertForAbbr(config, num_labels=num_labels)
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
+
+        eval_examples = processor.get_test_examples(args.data_dir)
+        eval_features, masks, weight = convert_examples_to_features(
+            eval_examples, label_list, args.max_seq_length, tokenizer, abex, args.ratio, is_test=True)
 
         hybrid_mask=None
         if args.no_logit_mask:
