@@ -140,7 +140,7 @@ class DataProcessor(object):
         return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, abex, ratio=0.9):
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, abex, ratio=0.9, is_test=False):
     """Loads a data file into a list of `InputBatch`s."""
 
     def match(text,abbr):
@@ -175,19 +175,38 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens_a = example.text
         tokens_a=tokenizer.tokenize(tokens_a)
         label_token=tokenizer.tokenize(example.label)
-        position=match(tokens_a,label_token)
-        if position==None:
-            print(tokens_a,label_token)
-            bad_count+=1
-            continue
-        if position>max_seq_length-2:
-            bad_count += 1
-            continue
+        if is_test:
+            if example.label.lower() in exab:
+                abbr_token=tokenizer.tokenize(exab[example.label])
+                position=match(tokens_a,abbr_token)
+            elif example.label.lower() in abex:
+                position = match(tokens_a, label_token)
+            else:
+                print("abbreviation does not match",tokens_a, label_token)
+                bad_count += 1
+                continue
 
-        # replace the expansion by its abbreviation or '[MASK]'
-        replacement=tokenizer.tokenize(exab[example.label])
-        #replacement=['[MASK]']
-        tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token):]
+            if position==None:
+                print(tokens_a,label_token)
+                bad_count+=1
+                continue
+            if position>max_seq_length-2:
+                bad_count += 1
+                continue
+        else:
+            position=match(tokens_a,label_token)
+            if position==None:
+                print(tokens_a,label_token)
+                bad_count+=1
+                continue
+            if position>max_seq_length-2:
+                bad_count += 1
+                continue
+
+            # replace the expansion by its abbreviation or '[MASK]'
+            replacement=tokenizer.tokenize(exab[example.label])
+            #replacement=['[MASK]']
+            tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token):]
 
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
