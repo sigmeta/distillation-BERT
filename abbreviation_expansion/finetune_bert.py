@@ -297,37 +297,68 @@ def accuracy(out, labels):
 
 
 def accuracy_list(out, labels, positions):
-    outputs = np.argmax(out, axis=2)
-    res = []
-    # print(out)
-    # print(outputs)
-    for i, p in enumerate(positions):
-        # assert labels[i, p] != -1
-        if labels[i, p] == -1:
-            print(outputs[i], labels[i], positions[i])
-        # print(outputs[i,p],labels[i,p])
-        if outputs[i, p] == labels[i, p]:
-            res.append(1)
-        else:
-            res.append(0)
+    res=[]
+    if len(out.size())==3:
+        outputs = np.argmax(out, axis=2)
+        # print(out)
+        # print(outputs)
+        for i, p in enumerate(positions):
+            # assert labels[i, p] != -1
+            if labels[i, p] == -1:
+                print(outputs[i], labels[i], positions[i])
+            # print(outputs[i,p],labels[i,p])
+            if outputs[i, p] == labels[i, p]:
+                res.append(1)
+            else:
+                res.append(0)
+    elif len(out.size())==2:
+        outputs = np.argmax(out, axis=1)
+        # print(out)
+        # print(outputs)
+        for i, p in enumerate(positions):
+            # assert labels[i, p] != -1
+            if labels[i, p] == -1:
+                print(outputs[i], labels[i], positions[i])
+            # print(outputs[i,p],labels[i,p])
+            if outputs[i] == labels[i, p]:
+                res.append(1)
+            else:
+                res.append(0)
+    else:
+        raise ValueError("output should have dimensions of 2 or 3")
     return res
 
 def result_list(outs, labels, positions, label_list):
-    outputs = np.argmax(outs, axis=2)
     res = []
     out = []
-    # print(out)
-    # print(outputs)
-    for i, p in enumerate(positions):
-        # assert labels[i, p] != -1
-        if labels[i, p] == -1:
-            print(outputs[i], labels[i], positions[i])
-        # print(outputs[i,p],labels[i,p])
-        if outputs[i, p] == labels[i, p]:
-            res.append(1)
-        else:
-            res.append(0)
-        out.append(label_list[outputs[i, p]])
+    if len(outs.size())==3:
+        outputs = np.argmax(outs, axis=2)
+        # print(out)
+        # print(outputs)
+        for i, p in enumerate(positions):
+            # assert labels[i, p] != -1
+            if labels[i, p] == -1:
+                print(outputs[i], labels[i], positions[i])
+            # print(outputs[i,p],labels[i,p])
+            if outputs[i, p] == labels[i, p]:
+                res.append(1)
+            else:
+                res.append(0)
+            out.append(label_list[outputs[i, p]])
+    elif len(outs.size()) == 2:
+        outputs = np.argmax(outs, axis=1)
+        # print(out)
+        # print(outputs)
+        for i, p in enumerate(positions):
+            # assert labels[i, p] != -1
+            if labels[i, p] == -1:
+                print(outputs[i], labels[i], positions[i])
+            # print(outputs[i,p],labels[i,p])
+            if outputs[i] == labels[i, p]:
+                res.append(1)
+            else:
+                res.append(0)
+            out.append(label_list[outputs[i]])
 
     return out,res
 
