@@ -27,6 +27,7 @@ import json
 import re
 import math
 import collections
+import time
 
 import numpy as np
 import torch
@@ -599,6 +600,7 @@ def main():
         hybrid_mask=None
 
         writer = SummaryWriter(log_dir=os.environ['HOME'])
+        tag=str(int(time.time()))
 
         print(weight)
         logger.info("***** Running training *****")
@@ -650,7 +652,7 @@ def main():
                     optimizer.step()
                     optimizer.zero_grad()
                     global_step += 1
-                writer.add_scalar('data/loss', loss.item(), global_step)
+                writer.add_scalar('data/loss'+tag, loss.item(), global_step)
             logger.info(f'Trainging loss: {tr_loss/nb_tr_steps}')
 
 
