@@ -1740,10 +1740,10 @@ class BertForAbbrSlow(BertPreTrainedModel):
         #targets=targets[target_mask.ne(-1)]
         targets=targets.squeeze().contiguous()
         lprobs=functional.log_softmax(logits)
-        loss=-lprobs*targets
+        loss=-lprobs[lprobs.ne(float('-inf'))]*targets[lprobs.ne(float('-inf'))]
         if weight is not None:
-            loss=loss*weight
-        loss=loss.sum()
+            loss=loss*weight[lprobs.ne(float('-inf'))]
+        loss=loss.sum()/logits.size(0)
         return loss
 
 
