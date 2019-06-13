@@ -36,7 +36,8 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForAbbr, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
+from pytorch_pretrained_bert.modeling import BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
+from pytorch_pretrained_bert.modeling import BertForAbbrSlow as BertForAbbr
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 from tensorboardX import SummaryWriter
