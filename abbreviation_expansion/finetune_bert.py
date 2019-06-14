@@ -298,7 +298,7 @@ def accuracy(out, labels):
 
 def accuracy_list(out, labels, positions):
     res=[]
-    if len(out.size())==3:
+    if len(out.shape)==3:
         outputs = np.argmax(out, axis=2)
         # print(out)
         # print(outputs)
@@ -311,7 +311,7 @@ def accuracy_list(out, labels, positions):
                 res.append(1)
             else:
                 res.append(0)
-    elif len(out.size())==2:
+    elif len(out.shape)==2:
         outputs = np.argmax(out, axis=1)
         # print(out)
         # print(outputs)
@@ -331,7 +331,7 @@ def accuracy_list(out, labels, positions):
 def result_list(outs, labels, positions, label_list):
     res = []
     out = []
-    if len(outs.size())==3:
+    if len(outs.shape)==3:
         outputs = np.argmax(outs, axis=2)
         # print(out)
         # print(outputs)
@@ -345,7 +345,7 @@ def result_list(outs, labels, positions, label_list):
             else:
                 res.append(0)
             out.append(label_list[outputs[i, p]])
-    elif len(outs.size()) == 2:
+    elif len(outs.shape) == 2:
         outputs = np.argmax(outs, axis=1)
         # print(out)
         # print(outputs)

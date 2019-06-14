@@ -1332,16 +1332,18 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
             logit_masks=logit_masks[0]
-            for i in range(logits.size()[0]):
-                for j in range(logits.size()[1]):
-                    if labels[i,j]!=-1:
-                        logits[i,j]=logits[i,j].masked_fill(logit_masks[labels[i,j]],value=torch.tensor(float('-inf')))
+            mask_pos = labels.ne(-1)
+            logits = logits[mask_pos]
+            labels = labels[mask_pos]
+            if logit_masks is not None:
+                mask = logit_masks.index_select(0, labels)
+                logits = logits.masked_fill(mask, value=torch.tensor(float('-inf')))
 
         if weight is not None:
             weight=weight[0]
         if cal_loss:
             loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            loss = loss_fct(logits, labels)
             return loss
         else:
             return logits

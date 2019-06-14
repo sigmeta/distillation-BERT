@@ -244,11 +244,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
 def accuracy(out, labels):
     outputs = np.argmax(out, axis=1)
-    return np.sum(outputs == labels)
+    return np.sum(outputs == labels[labels.ne(-1)])
 
 
 def accuracy_list(out, labels, positions):
-    outputs = np.argmax(out, axis=2)
+    outputs = np.argmax(out, axis=1)
     res = []
     # print(out)
     # print(outputs)
@@ -257,7 +257,7 @@ def accuracy_list(out, labels, positions):
         if labels[i, p] == -1:
             print(outputs[i], labels[i], positions[i])
         # print(outputs[i,p],labels[i,p])
-        if outputs[i, p] == labels[i, p]:
+        if outputs[i] == labels[i, p]:
             res.append(1)
         else:
             res.append(0)
