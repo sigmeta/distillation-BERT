@@ -314,6 +314,11 @@ def main():
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
 
     model.eval()
+    with open('/var/storage/shared/ipgsp/t-hasu/polyphone/a/en_corpus/frequency.json') as f:
+        freq_dct=json.loads(f.read())
+        freq_list=[freq_dct[k] for k in freq_dct]
+        freq=torch.tensor(freq_list,dtype=torch.float)+1
+        freq=freq.to(device)
     with open(args.output_file, "w", encoding='utf-8') as writer:
         for input_ids, input_mask, target_ids, example_indices in eval_dataloader:
             input_ids = input_ids.to(device)
@@ -321,7 +326,7 @@ def main():
             input_mask = input_mask.to(device)
             with torch.no_grad():
                 scores = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
-                scores=F.softmax(scores)
+                scores=F.softmax(scores)/freq
                 print(example_indices,scores)
 
             for b, example_index in enumerate(example_indices):
