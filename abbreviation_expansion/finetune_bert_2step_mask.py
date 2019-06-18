@@ -207,8 +207,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 continue
 
             # replace the expansion by its abbreviation or '[MASK]'
-            replacement=tokenizer.tokenize(exab[example.label])
-            #replacement=['[MASK]']
+            #replacement=tokenizer.tokenize(exab[example.label])
+            replacement=['[MASK]']
             tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token):]
 
         # Account for [CLS] and [SEP] with "- 2"
