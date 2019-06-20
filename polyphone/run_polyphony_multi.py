@@ -455,6 +455,7 @@ def main():
             raise ValueError("Config file is needed when not using the pretrained model")
         config = BertConfig(args.config_path)
         model=BertForPolyphonyMulti(config,num_labels=num_labels)
+        os.makedirs(args.output_dir, exist_ok=True)
     else:
         os.makedirs(args.output_dir, exist_ok=True)
         if args.state_dir and os.path.exists(args.state_dir):
