@@ -370,6 +370,14 @@ def main():
                         default="",
                         type=str,
                         help="Where to load state dict instead of using Google pre-trained model")
+    parser.add_argument("--no_pretrain",
+                        default="",
+                        action='store_true',
+                        help="Whether not to use pretrained model")
+    parser.add_argument("--config_path",
+                        default="",
+                        type=str,
+                        help="Where to load the config file when not using pretrained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -442,6 +450,11 @@ def main():
         else:
             raise ValueError(
                 "Output directory ({}) already exists but no model checkpoint was found.".format(args.output_dir))
+    elif args.no_pretrain:
+        if not args.config_path:
+            raise ValueError("Config file is needed when not using the pretrained model")
+        config = BertConfig(args.config_path)
+        model=BertForPolyphonyMulti(config,num_labels=num_labels)
     else:
         os.makedirs(args.output_dir, exist_ok=True)
         if args.state_dir and os.path.exists(args.state_dir):
