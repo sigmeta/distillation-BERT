@@ -1848,6 +1848,58 @@ class BertForAbbrVocab(BertPreTrainedModel):
         loss = loss.sum() / logits.size(0)
         return loss
 
+
+class BertForMaskedLMTeacher(BertPreTrainedModel):
+    """BERT model with pre-training heads.
+
+    """
+    def __init__(self, config):
+        super(BertForMaskedLMTeacher, self).__init__(config)
+        self.bert = BertModel(config)
+        self.cls = BertPreTrainingHeads(config, self.bert.embeddings.word_embeddings.weight)
+        #self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, next_sentence_label=None):
+        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+                                                   output_all_encoded_layers=False)
+        prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
+        scores=prediction_scores[masked_lm_labels.ne(-1)]
+        #assert score.size(1)==1
+        return scores
+
+class BertForMaskedLMStudent(BertPreTrainedModel):
+    """BERT model with the masked language modeling head.
+
+    """
+    def __init__(self, config):
+        super(BertForMaskedLMStudent, self).__init__(config)
+        self.bert = BertModel(config)
+        self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, targets=None,
+                hybrid_mask=None):
+        if hybrid_mask is not None:
+            attention_mask = hybrid_mask[0:1] * (attention_mask.unsqueeze(1).unsqueeze(2))
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
+                                       output_all_encoded_layers=False)
+        prediction_scores = self.cls(sequence_output)
+
+        if masked_lm_labels is not None:
+            prediction_scores=prediction_scores[masked_lm_labels.ne(-1)]
+            loss_fct = self.compute_loss
+            masked_lm_loss = loss_fct(prediction_scores,targets)
+            return masked_lm_loss
+        else:
+            return prediction_scores
+
+    def compute_loss(self,logits,targets,weight=None):
+        lprobs=functional.log_softmax(logits)
+        loss = -lprobs * targets
+        loss = loss.sum() / logits.size(0)
+        return loss
+
+
 class BertForMultipleChoice(BertPreTrainedModel):
     """BERT model for multiple choice tasks.
     This module is composed of the BERT model with a linear layer on top of
