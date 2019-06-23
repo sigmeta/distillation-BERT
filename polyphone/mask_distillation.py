@@ -492,6 +492,7 @@ def main():
         except ImportError:
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
         model = DDP(model)
+        teacher_model=DDP(teacher_model)
     elif n_gpu > 1:
         teacher_model=torch.nn.DataParallel(teacher_model)
         model = torch.nn.DataParallel(model)
