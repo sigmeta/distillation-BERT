@@ -1863,9 +1863,9 @@ class BertForMaskedLMTeacher(BertPreTrainedModel):
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
                                                    output_all_encoded_layers=False)
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
-        scores=prediction_scores[masked_lm_labels.ne(-1)]
+        #scores=prediction_scores[masked_lm_labels.ne(-1)]
         #assert score.size(1)==1
-        return scores
+        return prediction_scores
 
 class BertForMaskedLMStudent(BertPreTrainedModel):
     """BERT model with the masked language modeling head.
@@ -1887,6 +1887,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
 
         if masked_lm_labels is not None:
             prediction_scores=prediction_scores[masked_lm_labels.ne(-1)]
+            targets=targets[masked_lm_labels.ne(-1)]
             loss_fct = self.compute_loss
             masked_lm_loss = loss_fct(prediction_scores,targets)
             return masked_lm_loss
