@@ -1864,8 +1864,9 @@ class BertForMaskedLMTeacher(BertPreTrainedModel):
                                                    output_all_encoded_layers=False)
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
         #scores=prediction_scores[masked_lm_labels.ne(-1)]
+        scores=nn.functional.softmax(prediction_scores,dim=-1)
         #assert score.size(1)==1
-        return prediction_scores
+        return scores
 
 class BertForMaskedLMStudent(BertPreTrainedModel):
     """BERT model with the masked language modeling head.
@@ -1895,7 +1896,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
             return prediction_scores
 
     def compute_loss(self,logits,targets,weight=None):
-        lprobs=functional.log_softmax(logits)
+        lprobs=functional.log_softmax(logits,dim=-1)
         loss = -lprobs * targets
         loss = loss.sum() / logits.size(0)
         return loss

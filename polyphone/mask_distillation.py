@@ -617,13 +617,13 @@ def main():
                     optimizer.zero_grad()
                     global_step += 1
                 # log the training loss for every 1000 steps
-                if global_step%1000==999:
-                    writer.add_scalar('data/loss', tr_loss_1000/1000, global_step)
+                if global_step%100==99:
+                    writer.add_scalar('data/loss', tr_loss_1000/100, global_step)
                     logger.info("training steps: %s", global_step)
-                    logger.info("training loss per 1000: %s", tr_loss_1000/1000)
+                    logger.info("training loss per 1000: %s", tr_loss_1000/100)
                     tr_loss_1000=0
                 # save the checkpoint for every 10000 steps
-                if global_step%10000==0:
+                if global_step%1000==0:
                     model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
                     output_file = os.path.join(args.output_dir, "checkpoints_" + str(global_step) + ".pt")
                     checkpoint={'model':model_to_save.state_dict(),'optimizer':optimizer.state_dict(),
