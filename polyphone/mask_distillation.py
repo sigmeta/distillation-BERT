@@ -618,7 +618,7 @@ def main():
                     global_step += 1
                 # log the training loss for every 1000 steps
                 if global_step%100==99:
-                    writer.add_scalar('data/loss', tr_loss_1000/100, global_step)
+                    writer.add_scalar('mask_distillation/loss', tr_loss_1000/100, global_step)
                     logger.info("training steps: %s", global_step)
                     logger.info("training loss per 1000: %s", tr_loss_1000/100)
                     tr_loss_1000=0
