@@ -215,18 +215,10 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 line = reader.readline()
                 if not line:
                     break
-                text_a=line.split()
-                abbr_pos=-1
-                abbr=''
-                for i,t in enumerate(text_a):
-                    if t.lower() in dic:
-                        print(t)
-                        abbr_pos=i
-                        abbr=t.lower()
-                if abbr_pos==-1:
-                    continue
-                left=tokenizer.tokenize(' '.join(text_a[:abbr_pos]))
-                right=tokenizer.tokenize(' '.join(text_a[abbr_pos+1:]))
+                text_a,abbr,_=line.lower().split('\t')
+                left_text,right_text=re.split(abbr.replace('.','\.'),text_a,1)
+                left=tokenizer.tokenize(left_text)
+                right=tokenizer.tokenize(right_text)
                 labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
                 #labels = left + tokenizer.tokenize(abbr) + right
                 #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
@@ -326,8 +318,8 @@ def main():
             input_mask = input_mask.to(device)
             with torch.no_grad():
                 scores = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
-                scores=F.softmax(scores)/freq
-                print(example_indices,scores)
+                scores=F.softmax(scores)#/freq
+                #print(example_indices,scores)
 
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
@@ -344,7 +336,7 @@ def main():
                         can_ids=tokenizer.convert_tokens_to_ids(tokenizer.tokenize(candidate.lower()))
                         #score=float((scores[can_ids]/score_base[can_ids]).mean())
                         score = float((scores[can_ids]).mean())
-                        print(candidate, tokenizer.tokenize(candidate),score)
+                        #print(candidate, tokenizer.tokenize(candidate),score)
                         output_json["score"].append((candidate,score))
                     writer.write(json.dumps(output_json) + "\n")
 
