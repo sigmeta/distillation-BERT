@@ -240,7 +240,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_pos = position + 1  # First token is [cls]
         assert label_pos < max_seq_length
         # assert tokens[label_pos]==example.label[-1][1][0]
-        candidates=[exab[example.label]]+abex[exab[example.label]]
+        candidates=[exab[example.label]]+list(abex[exab[example.label]].keys())
 
         char=label.split('\t')[0]
 
