@@ -216,6 +216,7 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 if not line:
                     break
                 text_a,abbr,_=line.lower().split('\t')
+                abbr=abbr.strip()
                 left_text,right_text=re.split(abbr.replace('.','\.'),text_a,1)
                 left=tokenizer.tokenize(left_text)
                 right=tokenizer.tokenize(right_text)
