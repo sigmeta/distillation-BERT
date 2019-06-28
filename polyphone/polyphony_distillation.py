@@ -582,7 +582,8 @@ def main():
         else:
             train_sampler = DistributedSampler(train_data)
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
-        logger.info("param nums = %d", sum(param.numel() for param in model.parameters()))
+        logger.info("Teacher param nums = %d", sum(param.numel() for param in teacher_model.parameters()))
+        logger.info("Student param nums = %d", sum(param.numel() for param in model.parameters()))
 
         model.train()
         for ep in trange(int(args.num_train_epochs), desc="Epoch"):

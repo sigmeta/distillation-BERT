@@ -576,7 +576,8 @@ def main():
             # (it doesn't return item back by index)
             train_sampler = DistributedSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
-        logger.info("param nums = %d", sum(param.numel() for param in model.parameters()))
+        logger.info("Teacher param nums = %d", sum(param.numel() for param in teacher_model.parameters()))
+        logger.info("Student param nums = %d", sum(param.numel() for param in model.parameters()))
 
         model.train()
         teacher_model.eval()
