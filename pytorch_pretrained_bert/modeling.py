@@ -1610,7 +1610,7 @@ class BertForAbbrPad(BertPreTrainedModel):
     """BERT model for classification.
     Fast version: label mask by matrix operation
     """
-    def __init__(self, config, num_labels):
+    def __init__(self, config):
         super(BertForAbbrPad, self).__init__(config)
         self.bert = BertModel(config)
         self.cls = BertPreTrainingHeads(config, self.bert.embeddings.word_embeddings.weight)
@@ -1622,7 +1622,7 @@ class BertForAbbrPad(BertPreTrainedModel):
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
         if cal_loss:
             loss_fct = CrossEntropyLoss(ignore_index=-1)
-            loss = loss_fct(prediction_scores.view(-1, self.num_labels), labels.view(-1))
+            loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
             return loss
         else:
             return prediction_scores

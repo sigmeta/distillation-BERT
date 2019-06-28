@@ -546,7 +546,7 @@ def main():
             output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
             output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
-            model = BertForAbbrPad(config, num_labels=num_labels)
+            model = BertForAbbrPad(config)
             model.load_state_dict(torch.load(output_model_file))
         else:
             raise ValueError(
@@ -566,8 +566,7 @@ def main():
             state_dict=None
         model = BertForAbbrPad.from_pretrained(args.bert_model,
                                                   cache_dir=cache_dir,
-                                                  state_dict=state_dict,
-                                                  num_labels=num_labels)
+                                                  state_dict=state_dict)
     if args.fp16:
         model.half()
     model.to(device)
