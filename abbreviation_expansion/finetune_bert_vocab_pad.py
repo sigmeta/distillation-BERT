@@ -660,7 +660,7 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, label_ids, label_poss = batch
                 # print(masks.size())
-                loss = model(input_ids, attention_mask=input_mask, labels=label_ids, cal_loss=False)
+                loss = model(input_ids, attention_mask=input_mask, labels=label_ids, cal_loss=True)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
