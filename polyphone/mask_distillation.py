@@ -545,27 +545,23 @@ def main():
     global_step = 0
     epoch_start=0
     if args.do_train:
-        if args.continue_training:
-            # if checkpoint file exists, find the last checkpoint
-            if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-                all_cp = os.listdir(args.output_dir)
-                steps = [int(re.search('_\d+', cp).group()[1:]) for cp in all_cp if re.search('_\d+', cp)]
-                if len(steps) == 0:
-                    raise ValueError("No existing checkpoint. Please do not use --continue_training.")
-                max_step = max(steps)
-                # load checkpoint
-                checkpoint = torch.load(os.path.join(args.output_dir, 'checkpoints_' + str(max_step) + '.pt'))
-                logger.info("***** Loading checkpoint *****")
-                logger.info("  Num steps = %d", checkpoint['global_step'])
-                logger.info("  Num epoch = %d", checkpoint['epoch'])
-                logger.info("  Loss = %d, %d", checkpoint['loss'], checkpoint['loss_now'])
-                model.module.load_state_dict(checkpoint['model'])
-                optimizer.load_state_dict(checkpoint['optimizer'])
-                global_step=checkpoint['global_step']
-                epoch_start=checkpoint['epoch']
-                del checkpoint
-            else:
+        if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
+            all_cp = os.listdir(args.output_dir)
+            steps = [int(re.search('_\d+', cp).group()[1:]) for cp in all_cp if re.search('_\d+', cp)]
+            if len(steps) == 0:
                 raise ValueError("No existing checkpoint. Please do not use --continue_training.")
+            max_step = max(steps)
+            # load checkpoint
+            checkpoint = torch.load(os.path.join(args.output_dir, 'checkpoints_' + str(max_step) + '.pt'))
+            logger.info("***** Loading checkpoint *****")
+            logger.info("  Num steps = %d", checkpoint['global_step'])
+            logger.info("  Num epoch = %d", checkpoint['epoch'])
+            logger.info("  Loss = %d, %d", checkpoint['loss'], checkpoint['loss_now'])
+            model.module.load_state_dict(checkpoint['model'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            global_step=checkpoint['global_step']
+            epoch_start=checkpoint['epoch']
+            del checkpoint
 
         writer = SummaryWriter(log_dir=os.environ['HOME'])
         logger.info("***** Running training *****")
