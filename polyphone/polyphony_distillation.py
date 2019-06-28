@@ -474,7 +474,10 @@ def main():
     elif args.config_path:
         config = BertConfig(args.config_path)
         model = BertForPolyphonyMulti(config, num_labels=num_labels)
-        model.load_state_dict(torch.load(args.state_dir))
+        state_dict=torch.load(args.state_dir)
+        if 'model' in state_dict:
+            state_dict = state_dict['model']
+        model.load_state_dict(state_dict)
 
     else:
         os.makedirs(args.output_dir, exist_ok=True)
