@@ -477,7 +477,7 @@ def main():
         state_dict=torch.load(args.state_dir)
         if 'model' in state_dict:
             state_dict = state_dict['model']
-        model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict,strict=False)
 
     else:
         os.makedirs(args.output_dir, exist_ok=True)
