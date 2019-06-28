@@ -1289,8 +1289,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         #output=self.dropout(output)
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
-        if teacher:
-            return logits
+
         if logit_masks is not None:
             logit_masks=logit_masks[0]
             mask_pos = labels.ne(-1)
@@ -1299,6 +1298,8 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
             if logit_masks is not None:
                 mask = logit_masks.index_select(0, labels)
                 logits = logits.masked_fill(mask, value=torch.tensor(float('-inf')))
+        if teacher:
+            return logits
 
         if weight is not None:
             weight=weight[0]
@@ -1308,7 +1309,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
             return loss
         elif cal_loss and targets is not None:
             loss_fct=self.compute_loss
-            targets=functional.softmax(targets,dim=-1)[labels.ne(-1)]
+            targets=functional.softmax(targets,dim=-1)
             loss=loss_fct(logits,targets)
             return loss
         else:

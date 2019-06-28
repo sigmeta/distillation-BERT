@@ -471,6 +471,11 @@ def main():
         config = BertConfig(args.config_path)
         model=BertForPolyphonyMulti(config,num_labels=num_labels)
         os.makedirs(args.output_dir, exist_ok=True)
+    elif args.config_path:
+        config = BertConfig(args.config_path)
+        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model.load_state_dict(torch.load(args.state_dir))
+
     else:
         os.makedirs(args.output_dir, exist_ok=True)
         if args.state_dir and os.path.exists(args.state_dir):
@@ -574,6 +579,7 @@ def main():
         else:
             train_sampler = DistributedSampler(train_data)
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
+        logger.info("param nums = %d", sum(param.numel() for param in model.parameters()))
 
         model.train()
         for ep in trange(int(args.num_train_epochs), desc="Epoch"):
