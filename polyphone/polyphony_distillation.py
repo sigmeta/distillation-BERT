@@ -478,6 +478,7 @@ def main():
         if 'model' in state_dict:
             state_dict = state_dict['model']
         model.load_state_dict(state_dict,strict=False)
+        os.makedirs(args.output_dir, exist_ok=True)
 
     else:
         os.makedirs(args.output_dir, exist_ok=True)
