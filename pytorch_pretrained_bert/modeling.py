@@ -1699,10 +1699,10 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
         prediction_scores = self.cls(sequence_output)
 
         if masked_lm_labels is not None:
-            prediction_scores=prediction_scores[masked_lm_labels.ne(-1)]
+            prediction_scores2=prediction_scores[masked_lm_labels.ne(-1)]
             targets=targets[masked_lm_labels.ne(-1)]
             loss_fct = self.compute_loss
-            kd_loss = loss_fct(prediction_scores,targets)
+            kd_loss = loss_fct(prediction_scores2,targets)
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             nll_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
             return kd_loss*ratio+nll_loss*(1-ratio)
