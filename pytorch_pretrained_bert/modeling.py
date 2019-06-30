@@ -1280,7 +1280,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None,
-                cal_loss=True, weight=None, hybrid_mask=None, targets=None, teacher=False):
+                cal_loss=True, weight=None, hybrid_mask=None, targets=None, teacher=False,ratio=1.0):
         if hybrid_mask is not None:
             attention_mask=hybrid_mask[0:1]*(attention_mask.unsqueeze(1).unsqueeze(2))
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
@@ -1310,8 +1310,10 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         elif cal_loss and targets is not None:
             loss_fct=self.compute_loss
             targets=functional.softmax(targets,dim=-1)
-            loss=loss_fct(logits,targets)
-            return loss
+            kd_loss=loss_fct(logits,targets)
+            loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
+            nll_loss = loss_fct(logits, labels)
+            return kd_loss*ratio+nll_loss*(1-ratio)
         else:
             return logits
 
@@ -1689,7 +1691,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, targets=None,
-                hybrid_mask=None):
+                hybrid_mask=None,ratio=1.0):
         if hybrid_mask is not None:
             attention_mask = hybrid_mask[0:1] * (attention_mask.unsqueeze(1).unsqueeze(2))
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
@@ -1700,8 +1702,10 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
             prediction_scores=prediction_scores[masked_lm_labels.ne(-1)]
             targets=targets[masked_lm_labels.ne(-1)]
             loss_fct = self.compute_loss
-            masked_lm_loss = loss_fct(prediction_scores,targets)
-            return masked_lm_loss
+            kd_loss = loss_fct(prediction_scores,targets)
+            loss_fct = CrossEntropyLoss(ignore_index=-1)
+            nll_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
+            return kd_loss*ratio+nll_loss*(1-ratio)
         else:
             return prediction_scores
 

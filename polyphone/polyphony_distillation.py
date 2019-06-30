@@ -386,6 +386,10 @@ def main():
                         default="",
                         type=str,
                         help="teacher model config path")
+    parser.add_argument("--kd_ratio",
+                        default=1.0,
+                        type=float,
+                        help="Knowledge distillation loss ratio")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -598,7 +602,7 @@ def main():
                     teacher_out=teacher_model(input_ids,input_mask,label_ids,logit_masks=masks,weight=weight,
                                               hybrid_mask=hybrid_mask,teacher=True)
                 loss = model(input_ids, input_mask, label_ids, logit_masks=masks, weight=weight,
-                             hybrid_mask=hybrid_mask, targets=teacher_out)
+                             hybrid_mask=hybrid_mask, targets=teacher_out, ratio=args.kd_ratio)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:

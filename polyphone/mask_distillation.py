@@ -424,6 +424,10 @@ def main():
                         default="",
                         type=str,
                         help="Where to load the config file when not using pretrained model")
+    parser.add_argument("--kd_ratio",
+                        default=1.0,
+                        type=float,
+                        help="Knowledge distillation loss ratio")
 
     args = parser.parse_args()
 
@@ -590,7 +594,8 @@ def main():
                 input_ids, input_mask, segment_ids, lm_label_ids = batch
                 with torch.no_grad():
                     teacher_out=teacher_model(input_ids,segment_ids,input_mask,lm_label_ids)
-                loss = model(input_ids, segment_ids, input_mask, lm_label_ids, targets=teacher_out, hybrid_mask=attention_mask)
+                loss = model(input_ids, segment_ids, input_mask, lm_label_ids, targets=teacher_out,
+                             hybrid_mask=attention_mask, ratio=args.kd_ratio)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
