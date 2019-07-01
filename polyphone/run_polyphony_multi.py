@@ -26,6 +26,7 @@ import sys
 import json
 import re
 import math
+import time
 import collections
 
 import numpy as np
@@ -748,6 +749,7 @@ def main():
 
         res_list = []
         # masks = masks.to(device)
+        inf_time=0
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
@@ -756,7 +758,9 @@ def main():
 
             with torch.no_grad():
                 tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                start_time=time.time()
                 logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
+                inf_time+=(time.time()-start_time)
             # print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
@@ -793,6 +797,7 @@ def main():
             for key in sorted(char_acc.keys()):
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
+        logger.info(f'Inference time: {inf_time}')
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
         output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
