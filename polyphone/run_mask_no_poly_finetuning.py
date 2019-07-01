@@ -23,6 +23,7 @@ import os
 import re
 import random
 from io import open
+import math
 
 import numpy as np
 import torch
@@ -463,10 +464,11 @@ def main():
         print("Loading Train Dataset", args.train_file)
         train_dataset = BERTDataset(args.train_file, tokenizer, seq_len=args.max_seq_length,
                                     corpus_lines=None, on_memory=args.on_memory)
-        num_train_optimization_steps = int(
-            len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+        num_train_optimization_steps = len(
+            train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs
         if args.local_rank != -1:
-            num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
+            num_train_optimization_steps = num_train_optimization_steps / torch.distributed.get_world_size()
+        num_train_optimization_steps = math.ceil(num_train_optimization_steps)
 
     if args.no_pretrain:
         if not args.config_path:

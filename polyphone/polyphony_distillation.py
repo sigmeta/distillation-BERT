@@ -26,6 +26,7 @@ import sys
 import json
 import re
 import math
+import time
 import collections
 
 import numpy as np
@@ -438,10 +439,11 @@ def main():
     num_train_optimization_steps = None
     if args.do_train:
         train_examples = processor.get_train_examples(args.data_dir)
-        num_train_optimization_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+        num_train_optimization_steps = len(
+            train_examples) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs
         if args.local_rank != -1:
-            num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
+            num_train_optimization_steps = num_train_optimization_steps / torch.distributed.get_world_size()
+        num_train_optimization_steps = math.ceil(num_train_optimization_steps)
 
     # Prepare model
     cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
@@ -777,6 +779,7 @@ def main():
 
         res_list = []
         # masks = masks.to(device)
+        inf_time=0
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
@@ -785,7 +788,9 @@ def main():
 
             with torch.no_grad():
                 tmp_eval_loss = model(input_ids, input_mask, label_ids, logit_masks=masks, hybrid_mask=hybrid_mask)
+                start_time=time.time()
                 logits = model(input_ids, input_mask, label_ids, logit_masks=masks, cal_loss=False, hybrid_mask=hybrid_mask)
+                inf_time+=(time.time()-start_time)
             # print(logits.size())
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
@@ -822,6 +827,7 @@ def main():
             for key in sorted(char_acc.keys()):
                 logger.info("  %s = %s", key, str(char_acc[key]))
                 writer.write("%s = %s\n" % (key, str(char_acc[key])))
+        logger.info(f"Inference time: {inf_time}")
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
         output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
