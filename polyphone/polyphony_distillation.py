@@ -780,6 +780,7 @@ def main():
         res_list = []
         # masks = masks.to(device)
         inf_time=0
+        inf_list=[]
         for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
@@ -796,6 +797,9 @@ def main():
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
             res_list += accuracy_list(logits, label_ids, label_poss)
+            outputs = np.argmax(logits, axis=1)
+            for label_id in outputs:
+                inf_list.append(label_list[label_id])
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -831,10 +835,13 @@ def main():
         print("mean accuracy", sum(char_acc[c] for c in char_acc) / len(char_acc))
         output_acc_file = os.path.join(args.output_dir, args.test_set + ".json")
         output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
+        output_inflist_file = os.path.join(args.output_dir, args.test_set + "inflist.txt")
         with open(output_acc_file, "w") as f:
             f.write(json.dumps(char_acc, ensure_ascii=False))
         with open(output_reslist_file, "w") as f:
             f.write(json.dumps(res_list, ensure_ascii=False))
+        with open(output_inflist_file,'w') as f:
+            f.write('\n'.join(inf_list))
 
 
 if __name__ == "__main__":
