@@ -336,7 +336,7 @@ def main():
                     for candidate in all_candidates[unique_id]:
                         can_ids=tokenizer.convert_tokens_to_ids(tokenizer.tokenize(candidate.lower()))
                         #score=float((scores[can_ids]/score_base[can_ids]).mean())
-                        score = float((scores[can_ids]).mean())
+                        score = float((scores[b,can_ids]).mean())
                         #print(candidate, tokenizer.tokenize(candidate),score)
                         output_json["score"].append((candidate,score))
                     writer.write(json.dumps(output_json) + "\n")
