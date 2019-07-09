@@ -1269,7 +1269,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
     """BERT model for classification.
 
     """
-    def __init__(self, config, num_labels):
+    def __init__(self, config, num_labels, teacher=None):
         super(BertForPolyphonyMulti, self).__init__(config)
         self.num_labels = num_labels
         print(num_labels)
@@ -1278,9 +1278,10 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         #self.linear=nn.Linear(config.hidden_size,config.hidden_size)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
+        self.teacher=teacher
 
     def forward(self, input_ids, attention_mask=None, labels=None, token_type_ids=None, logit_masks=None,
-                cal_loss=True, weight=None, hybrid_mask=None, targets=None, teacher=False,ratio=1.0, teacher_model=None):
+                cal_loss=True, weight=None, hybrid_mask=None, targets=None, teacher=False,ratio=1.0, kd=False):
         if hybrid_mask is not None:
             attention_mask=hybrid_mask[0:1]*(attention_mask.unsqueeze(1).unsqueeze(2))
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
@@ -1290,9 +1291,9 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
 
-        if teacher_model is not None:
+        if kd:
             with torch.no_grad():
-                targets = teacher_model(input_ids, attention_mask, labels, logit_masks=logit_masks, weight=weight,
+                targets = self.teacher(input_ids, attention_mask, labels, logit_masks=logit_masks, weight=weight,
                                         hybrid_mask=hybrid_mask, teacher=True)
         if logit_masks is not None:
             logit_masks=logit_masks[0]

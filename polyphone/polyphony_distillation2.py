@@ -466,7 +466,7 @@ def main():
             output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(max_epoch))
             output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_0')
             config = BertConfig(output_config_file)
-            model = BertForPolyphonyMulti(config, num_labels=num_labels)
+            model = BertForPolyphonyMulti(config, num_labels=num_labels, teacher=teacher_model)
             model.load_state_dict(torch.load(output_model_file))
         else:
             raise ValueError(
@@ -475,11 +475,11 @@ def main():
         if not args.config_path:
             raise ValueError("Config file is needed when not using the pretrained model")
         config = BertConfig(args.config_path)
-        model=BertForPolyphonyMulti(config,num_labels=num_labels)
+        model=BertForPolyphonyMulti(config,num_labels=num_labels, teacher=teacher_model)
         os.makedirs(args.output_dir, exist_ok=True)
     elif args.config_path:
         config = BertConfig(args.config_path)
-        model = BertForPolyphonyMulti(config, num_labels=num_labels)
+        model = BertForPolyphonyMulti(config, num_labels=num_labels, teacher=teacher_model)
         state_dict=torch.load(args.state_dir)
         if 'model' in state_dict:
             state_dict = state_dict['model']
@@ -505,9 +505,7 @@ def main():
                                                   num_labels=num_labels)
     if args.fp16:
         model.half()
-        teacher_model.half()
     model.to(device)
-    teacher_model.to(device)
     if args.local_rank != -1:
         try:
             from apex.parallel import DistributedDataParallel as DDP
@@ -516,10 +514,8 @@ def main():
                 "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
 
         model = DDP(model)
-        teacher_model=DDP(teacher_model)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
-        teacher_model=torch.nn.DataParallel(teacher_model)
 
     # Prepare optimizer
     param_optimizer = list(model.named_parameters())
@@ -601,7 +597,7 @@ def main():
                 input_ids, input_mask, label_ids, label_poss = batch
                 # print(masks.size())
                 loss = model(input_ids, input_mask, label_ids, logit_masks=masks, weight=weight,
-                             hybrid_mask=hybrid_mask, targets=None, ratio=args.kd_ratio,teacher_model=teacher_model)
+                             hybrid_mask=hybrid_mask, targets=None, ratio=args.kd_ratio,kd=True)
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
