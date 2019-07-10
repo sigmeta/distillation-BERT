@@ -1291,15 +1291,16 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
 
+        mask_pos = labels.ne(-1)
+        logits = logits[mask_pos]
+        labels = labels[mask_pos]
+
         if kd:
             with torch.no_grad():
                 targets = self.teacher(input_ids, attention_mask, labels, logit_masks=logit_masks, weight=weight,
                                         hybrid_mask=hybrid_mask, teacher=True)
         if logit_masks is not None:
             logit_masks=logit_masks[0]
-            mask_pos = labels.ne(-1)
-            logits = logits[mask_pos]
-            labels = labels[mask_pos]
             if logit_masks is not None:
                 mask = logit_masks.index_select(0, labels)
                 logits = logits.masked_fill(mask, value=torch.tensor(float('-inf')))
