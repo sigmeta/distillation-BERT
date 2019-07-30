@@ -330,6 +330,8 @@ def main():
                 scores=F.softmax(scores)#/freq
                 #print(example_indices,scores)
                 print(input_ids.size(),scores.size())
+                if len(scores.size())<2:
+                    scores=scores.unsqueeze(0)
 
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
