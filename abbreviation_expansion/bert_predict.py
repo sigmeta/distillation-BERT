@@ -219,6 +219,8 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 abbr=abbr.strip()
                 text_a=' '+text_a+' '
                 slist=re.split(' '+abbr.replace('.','\.')+' ',text_a)
+                if len(slist)<2:
+                    print(slist)
                 left_text=(' '+abbr.replace('.','\.')+' ').join(slist[:-1])
                 right_text=slist[-1]
                 left=tokenizer.tokenize(left_text)
