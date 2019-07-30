@@ -44,11 +44,11 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-polyphones={'伯', '吓', '拉', '殷', '菲', '凿', '熟', '看', '别', '喷', '打', '核', '约', '雀', '俩',
+'''polyphones={'伯', '吓', '拉', '殷', '菲', '凿', '熟', '看', '别', '喷', '打', '核', '约', '雀', '俩',
             '的', '格', '没', '择', '不', '嚼', '暴', '炮', '强', '奇', '脏', '好', '乘', '更', '号',
             '把', '省', '淋', '脚', '种', '几', '还', '一', '蹬', '作', '呱', '喝', '劈', '间', '笼',
             '凉', '秤', '泡', '壳', '趟', '颤', '占', '肚', '落', '荷', '冲', '搂', '发', '拓', '晕',
-            '宿', '曾', '泊', '咖', '咔', '钻', '塞', '曝', '仔', '咧', '撩', '嘎'}
+            '宿', '曾', '泊', '咖', '咔', '钻', '塞', '曝', '仔', '咧', '撩', '嘎'}'''
 
 class BERTDataset(Dataset):
     def __init__(self, corpus_path, tokenizer, seq_len, encoding="utf-8", corpus_lines=None, on_memory=True):

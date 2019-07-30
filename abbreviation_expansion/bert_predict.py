@@ -215,9 +215,12 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 line = reader.readline()
                 if not line:
                     break
-                text_a,abbr,_=line.lower().split('\t')
+                text_a,abbr=line.lower().split('\t')[:2]
                 abbr=abbr.strip()
-                left_text,right_text=re.split(abbr.replace('.','\.'),text_a,1)
+                text_a=' '+text_a+' '
+                slist=re.split(' '+abbr.replace('.','\.')+' ',text_a)
+                left_text=(' '+abbr.replace('.','\.')+' ').join(slist[:-1])
+                right_text=slist[-1]
                 left=tokenizer.tokenize(left_text)
                 right=tokenizer.tokenize(right_text)
                 labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
