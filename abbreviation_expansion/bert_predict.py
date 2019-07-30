@@ -220,16 +220,17 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 text_a=' '+text_a+' '
                 slist=re.split(' '+abbr.replace('.','\.')+' ',text_a)
                 if len(slist)<2:
-                    print(slist)
+                    print("#####",slist)
                 left_text=(' '+abbr.replace('.','\.')+' ').join(slist[:-1])
                 right_text=slist[-1]
                 left=tokenizer.tokenize(left_text)
                 right=tokenizer.tokenize(right_text)
+                if len(left)>100:
+                    left=left[-100:]
                 labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
                 #labels = left + tokenizer.tokenize(abbr) + right
                 #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
-                if len(left)>100:
-                    left=left[-100:]
+
                 text=left+['[MASK]']+right
                 candidates=[abbr]+dic[abbr]
                 examples.append(
