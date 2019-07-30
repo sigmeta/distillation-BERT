@@ -324,7 +324,7 @@ def main():
                 scores = model(input_ids, token_type_ids=None, masked_lm_labels=target_ids, attention_mask=input_mask)
                 scores=F.softmax(scores)#/freq
                 #print(example_indices,scores)
-                print(scores.size())
+                print(input_ids.size(),scores.size())
 
             for b, example_index in enumerate(example_indices):
                 feature = features[example_index.item()]
