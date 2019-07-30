@@ -226,6 +226,8 @@ def read_examples(input_file, abbr_file, freq_file, tokenizer):
                 labels=['[PAD]']*len(left)+['[MASK]']+['[PAD]']*len(right)
                 #labels = left + tokenizer.tokenize(abbr) + right
                 #text=left+['[MASK]']*len(tokenizer.tokenize(abbr))+right
+                if len(left)>100:
+                    left=left[-100:]
                 text=left+['[MASK]']+right
                 candidates=[abbr]+dic[abbr]
                 examples.append(
