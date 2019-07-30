@@ -158,7 +158,7 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             logger.info(
                 "input_type_ids: %s" % " ".join([str(x) for x in input_type_ids]))
-        if True:
+        if False:
             logger.info("*** Example ***")
             logger.info("unique_id: %s" % (example.unique_id))
             logger.info("tokens: %s" % " ".join([str(x) for x in labels]))
