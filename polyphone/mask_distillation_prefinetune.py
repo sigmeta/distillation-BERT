@@ -24,6 +24,7 @@ import re
 import random
 from io import open
 import math
+import collections
 
 import numpy as np
 import torch
@@ -420,6 +421,10 @@ def main():
                         default="",
                         type=str,
                         help="Where to load the config file when not using pretrained model")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
     parser.add_argument("--teacher_path",
                         default="",
                         type=str,
@@ -482,6 +487,13 @@ def main():
             raise ValueError("Config file is needed when not using the pretrained model")
         config = BertConfig(args.config_path)
         model = BertForMaskedLMStudent(config)
+        if args.state_dir and os.path.exists(args.state_dir):
+            state_dict = torch.load(args.state_dir)
+            if isinstance(state_dict, dict) or isinstance(state_dict, collections.OrderedDict):
+                if 'model' in state_dict:
+                    state_dict = state_dict['model']
+            print("Using my own BERT state dict.")
+            model.load_state_dict(state_dict, strict=False)
     else:
         # Prepare model
         model = BertForMaskedLMStudent.from_pretrained(args.bert_model)
