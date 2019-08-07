@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 class InputExample(object):
     """A single training/test example for polyphony classification."""
 
-    def __init__(self, guid, text, label=None):
+    def __init__(self, guid, text, label, abbr):
         """Constructs a InputExample.
 
         Args:
@@ -66,6 +66,7 @@ class InputExample(object):
         self.guid = guid
         self.text = text
         self.label = label
+        self.abbr = abbr
 
 
 class InputFeatures(object):
@@ -137,9 +138,10 @@ class DataProcessor(object):
         for (i, dct) in enumerate(dcts):
             guid = "%s-%s" % (0, i)
             text = dct[0]
-            label = dct[1]
+            abbr = dct[1]
+            label = dct[2]
             examples.append(
-                InputExample(guid=guid, text=text, label=label))
+                InputExample(guid=guid, text=text, label=label, abbr=abbr))
         return examples
 
 
@@ -147,9 +149,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     """Loads a data file into a list of `InputBatch`s."""
 
     def match(text,abbr):
+        pos=-1
         for i in range(len(text)):
             if abbr[0]==text[i] and abbr==text[i:i+len(abbr)]:
-                return i
+                pos=i
+        return pos
     # label: abbr+\t+expansion
     exab={}
     for k in abex:
@@ -178,38 +182,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens_a = example.text
         tokens_a=tokenizer.tokenize(tokens_a)
         label_token=tokenizer.tokenize(example.label)
-        if is_test:
-            if example.label.lower() in exab:
-                abbr_token=tokenizer.tokenize(exab[example.label])
-                position=match(tokens_a,abbr_token)
-            elif example.label.lower() in abex:
-                position = match(tokens_a, label_token)
-            else:
-                print("abbreviation does not match",tokens_a, label_token)
-                bad_count += 1
-                continue
-
-            if position==None:
-                print(tokens_a,label_token)
-                bad_count+=1
-                continue
-            if position>max_seq_length-2:
-                bad_count += 1
-                continue
-        else:
-            position=match(tokens_a,label_token)
-            if position==None:
-                print(tokens_a,label_token)
-                bad_count+=1
-                continue
-            if position>max_seq_length-2:
-                bad_count += 1
-                continue
-
-            # replace the expansion by its abbreviation or '[MASK]'
-            replacement=tokenizer.tokenize(exab[example.label])
-            #replacement=['[MASK]']
-            tokens_a=tokens_a[:position]+replacement+tokens_a[position+len(label_token):]
+        abbr_token=tokenizer.tokenize(example.abbr)
+        position = match(tokens_a, abbr_token)
+        if position>100:
+            tokens_a=tokens_a[position-100:]
+            position=100
 
         # Account for [CLS] and [SEP] with "- 2"
         if len(tokens_a) > max_seq_length - 2:
@@ -259,9 +236,10 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert label_pos < max_seq_length
         # assert tokens[label_pos]==example.label[-1][1][0]
 
-        targets=[0.0]*len(label_list)
-        targets[label_map[label]]=ratio
-        targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]+=1-ratio
+        #targets=[0.0]*len(label_list)
+        #targets[label_map[label]]=ratio
+        #targets[label_map[label.split('\t')[0]+'\t'+label.split('\t')[0]]]+=1-ratio
+        targets=label_map[label]
 
         char=label.split('\t')[0]
 

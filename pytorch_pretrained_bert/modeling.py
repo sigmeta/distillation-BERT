@@ -1607,7 +1607,7 @@ class BertForAbbr(BertPreTrainedModel):
         else:
             return logits
 
-    def compute_loss(self,logits,targets,weight=None):
+    def compute_loss2(self,logits,targets,weight=None):
         targets=targets.squeeze().contiguous()
         lprobs=functional.log_softmax(logits)
         loss = -lprobs[lprobs.ne(float('-inf'))] * targets[lprobs.ne(float('-inf'))]
@@ -1615,6 +1615,10 @@ class BertForAbbr(BertPreTrainedModel):
             loss = loss * weight[lprobs.ne(float('-inf'))]
         loss = loss.sum() / logits.size(0)
         return loss
+    def compute_loss(self,logits,targets,weight=None):
+        loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
+        loss=loss_fct(logits,targets)
+
 
 
 class BertForAbbrPad(BertPreTrainedModel):
