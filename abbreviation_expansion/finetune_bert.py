@@ -220,7 +220,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         input_mask = [1] * len(input_ids)
         # [CLS] + [tokens] + [SEP]
         label_ids = [-1] * max_seq_length
-        label=exab[example.label]+'\t'+example.label
+        label=example.abbr+'\t'+example.label
 
         label_ids[position + 1] = label_map[label]
         label_count[label_map[label]]+=1
