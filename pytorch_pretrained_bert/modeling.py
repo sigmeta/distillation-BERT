@@ -1602,7 +1602,7 @@ class BertForAbbr(BertPreTrainedModel):
         if weight is not None:
             weight=weight[0]
         if cal_loss:
-            loss = self.compute_loss(logits,targets,weight=weight)
+            loss = self.compute_loss(logits,labels,weight=weight)
             return loss
         else:
             return logits
