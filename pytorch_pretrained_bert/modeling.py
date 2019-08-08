@@ -1618,6 +1618,7 @@ class BertForAbbr(BertPreTrainedModel):
     def compute_loss(self,logits,targets,weight=None):
         loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
         loss=loss_fct(logits,targets)
+        return loss
 
 
 
