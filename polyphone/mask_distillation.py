@@ -273,7 +273,7 @@ def convert_example_to_features(example, max_seq_length, tokenizer):
 
     tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
     # concatenate lm labels and account for CLS, SEP
-    lm_label_ids = ([-1] + t1_label + [-1])
+    lm_label_ids = (tokenizer.vocab["[CLS]"] + t1_label + [-1])
 
     # The convention in BERT is:
     # (a) For sequence pairs:
