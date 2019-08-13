@@ -273,7 +273,7 @@ def convert_example_to_features(example, max_seq_length, tokenizer):
 
     tokens_a, t1_label, token_types = random_word(tokens_a, tokenizer)
     # concatenate lm labels and account for CLS, SEP
-    lm_label_ids = (tokenizer.vocab["[CLS]"] + t1_label + [-1])
+    lm_label_ids = ([-1] + t1_label + [-1])
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -595,9 +595,9 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, lm_label_ids = batch
                 with torch.no_grad():
-                    teacher_out=teacher_model(input_ids,segment_ids,input_mask,lm_label_ids)
+                    teacher_out, pooled_out=teacher_model(input_ids,segment_ids,input_mask,lm_label_ids)
                 loss = model(input_ids, segment_ids, input_mask, lm_label_ids, targets=teacher_out,
-                             hybrid_mask=attention_mask, ratio=args.kd_ratio)
+                             hybrid_mask=attention_mask, ratio=args.kd_ratio, pooled_out=pooled_out)
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
