@@ -1692,8 +1692,9 @@ class BertForMaskedLMTeacher(BertPreTrainedModel):
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
         #scores=prediction_scores[masked_lm_labels.ne(-1)]
         scores=functional.softmax(prediction_scores,dim=-1)
+        seq_relationship_score=functional.softmax(seq_relationship_score,dim=-1)
         #assert score.size(1)==1
-        return scores, pooled_output
+        return scores, seq_relationship_score
 
 class BertForMaskedLMStudent(BertPreTrainedModel):
     """BERT model with the masked language modeling head.
@@ -1702,7 +1703,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
     def __init__(self, config):
         super(BertForMaskedLMStudent, self).__init__(config)
         self.bert = BertModel(config)
-        self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
+        self.cls = BertPreTrainingHeads(config, self.bert.embeddings.word_embeddings.weight)
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, targets=None,
@@ -1711,7 +1712,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
             attention_mask = hybrid_mask[0:1] * (attention_mask.unsqueeze(1).unsqueeze(2))
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
                                        output_all_encoded_layers=False)
-        prediction_scores = self.cls(sequence_output)
+        prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
         #pooled_output=nn.Sigmoid(pooled_output)
 
         if masked_lm_labels is not None:
@@ -1721,9 +1722,8 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
             kd_loss = loss_fct(prediction_scores2,targets)
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             nll_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
-            loss_fct = BCELoss()
-            pooled_loss=loss_fct(pooled_output,pooled_out)
-            return kd_loss*ratio+nll_loss*(1-ratio)+pooled_loss
+            #pooled_loss=loss_fct(seq_relationship_score,pooled_out)
+            return kd_loss*ratio+nll_loss*(1-ratio)#+pooled_loss
         else:
             return prediction_scores
 
