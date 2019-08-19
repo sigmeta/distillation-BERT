@@ -419,6 +419,14 @@ def main():
                              "Positive power of 2: static loss scaling value.\n")
     parser.add_argument('--server_ip', type=str, default='', help="Can be used for distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="Can be used for distant debugging.")
+    parser.add_argument("--state_dir",
+                        default="",
+                        type=str,
+                        help="Where to load state dict instead of using Google pre-trained model")
+    parser.add_argument("--config_path",
+                        default="",
+                        type=str,
+                        help="Where to load the config file when not using pretrained model")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -495,10 +503,18 @@ def main():
             num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
     # Prepare model
-    cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(args.local_rank))
-    model = BertForSequenceClassification.from_pretrained(args.bert_model,
-              cache_dir=cache_dir,
-              num_labels = num_labels)
+    if args.state_dir:
+        config = BertConfig(args.config_path)
+        model = BertForSequenceClassification(config, num_labels=num_labels)
+        state_dict = torch.load(args.state_dir)
+        if 'model' in state_dict:
+            state_dict = state_dict['model']
+        model.load_state_dict(state_dict, strict=False)
+    else:
+        cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(args.local_rank))
+        model = BertForSequenceClassification.from_pretrained(args.bert_model,
+                cache_dir=cache_dir,
+                num_labels = num_labels)
     if args.fp16:
         model.half()
     model.to(device)
