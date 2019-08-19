@@ -30,7 +30,7 @@ from io import open
 
 import torch
 from torch import nn
-from torch.nn import CrossEntropyLoss,functional,BCELoss
+from torch.nn import CrossEntropyLoss,functional
 
 from .file_utils import cached_path
 
@@ -476,12 +476,10 @@ class BertOnlyNSPHead(nn.Module):
 class BertPreTrainingHeads(nn.Module):
     def __init__(self, config, bert_model_embedding_weights):
         super(BertPreTrainingHeads, self).__init__()
-        #self.activation = nn.Tanh()
         self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
         self.seq_relationship = nn.Linear(config.hidden_size, 2)
 
     def forward(self, sequence_output, pooled_output):
-        #sequence_output=self.activation(sequence_output)
         prediction_scores = self.predictions(sequence_output)
         seq_relationship_score = self.seq_relationship(pooled_output)
         return prediction_scores, seq_relationship_score
@@ -1357,7 +1355,7 @@ class BertForPolyphonyMultiNgram(BertPreTrainedModel):
             for j in range(labels.size()[1]):
                 if labels[i,j]!=-1:
                     #output[i,j,self.hidden_size:]=torch.mean(output[i,[j-1,j+1],:self.hidden_size],0).squeeze()
-                    output[i,j,self.hidden_size:]=torch.mean(output[i,j-1:j+2,:self.hidden_size],0).squeeze() 
+                    output[i,j,self.hidden_size:]=torch.mean(output[i,j-1:j+2,:self.hidden_size],0).squeeze()
         logits = self.classifier(output)
         #print(logit_masks.size(),labels.size())
         if logit_masks is not None:
@@ -1692,9 +1690,8 @@ class BertForMaskedLMTeacher(BertPreTrainedModel):
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
         #scores=prediction_scores[masked_lm_labels.ne(-1)]
         scores=functional.softmax(prediction_scores,dim=-1)
-        seq_relationship_score=functional.softmax(seq_relationship_score,dim=-1)
         #assert score.size(1)==1
-        return scores, seq_relationship_score
+        return scores
 
 class BertForMaskedLMStudent(BertPreTrainedModel):
     """BERT model with the masked language modeling head.
@@ -1703,17 +1700,16 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
     def __init__(self, config):
         super(BertForMaskedLMStudent, self).__init__(config)
         self.bert = BertModel(config)
-        self.cls = BertPreTrainingHeads(config, self.bert.embeddings.word_embeddings.weight)
+        self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, targets=None,
-                hybrid_mask=None,ratio=1.0, pooled_out=None):
+                hybrid_mask=None,ratio=1.0):
         if hybrid_mask is not None:
             attention_mask = hybrid_mask[0:1] * (attention_mask.unsqueeze(1).unsqueeze(2))
-        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
                                        output_all_encoded_layers=False)
-        prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
-        #pooled_output=nn.Sigmoid(pooled_output)
+        prediction_scores = self.cls(sequence_output)
 
         if masked_lm_labels is not None:
             prediction_scores2=prediction_scores[masked_lm_labels.ne(-1)]
@@ -1722,8 +1718,7 @@ class BertForMaskedLMStudent(BertPreTrainedModel):
             kd_loss = loss_fct(prediction_scores2,targets)
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             nll_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
-            #pooled_loss=loss_fct(seq_relationship_score,pooled_out)
-            return kd_loss*ratio+nll_loss*(1-ratio)#+pooled_loss
+            return kd_loss*ratio+nll_loss*(1-ratio)
         else:
             return prediction_scores
 
