@@ -30,6 +30,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertModel
+from tqdm import tqdm
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -260,7 +261,7 @@ def main():
 
     model.eval()
     with open(args.output_file, "w", encoding='utf-8') as writer:
-        for input_ids, input_mask, example_indices in eval_dataloader:
+        for input_ids, input_mask, example_indices in tqdm(eval_dataloader):
             input_ids = input_ids.to(device)
             input_mask = input_mask.to(device)
 
