@@ -547,7 +547,7 @@ def main():
         teacher_model=DDP(teacher_model)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
-        teacher_model=torch.nn.DataParallel(model)
+        teacher_model=torch.nn.DataParallel(teacher_model)
 
     # Prepare optimizer
     param_optimizer = list(model.named_parameters())
