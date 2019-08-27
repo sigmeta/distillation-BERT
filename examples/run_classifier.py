@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import sys
+import json
 
 import numpy as np
 import torch
@@ -646,6 +647,7 @@ def main():
         model.eval()
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
+        rlist=[]
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -660,6 +662,7 @@ def main():
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
+            rlist+=logits.tolist()
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -681,6 +684,9 @@ def main():
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
+        output_eval_file = os.path.join(args.output_dir, "eval_reslist.txt")
+        with open(output_eval_file, "w") as writer:
+            writer.write(json.dumps(rlist))
 
 if __name__ == "__main__":
     main()
