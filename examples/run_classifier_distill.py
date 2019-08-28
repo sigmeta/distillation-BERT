@@ -610,8 +610,8 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
                 nll_loss = model(input_ids, segment_ids, input_mask, label_ids)
                 logits = model(input_ids, segment_ids, input_mask)
-                gt=F.log_softmax(teacher_model(input_ids, segment_ids, input_mask))
-                kd_loss=-F.softmax(logits)*gt
+                gt=F.softmax(teacher_model(input_ids, segment_ids, input_mask))
+                kd_loss=-F.log_softmax(logits)*gt
                 kd_loss=kd_loss.mean()
                 nll_loss=nll_loss.mean()
                 loss=(1-ratio)*nll_loss+ratio*kd_loss
