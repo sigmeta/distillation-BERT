@@ -339,7 +339,7 @@ def result_list(outs, labels, positions, label_list):
             if outs[i,outputs[i]]>0.7:
                 out.append(label_list[outputs[i]])
             else:
-                out.append('-')
+                out.append(label_list[outputs[i]]+'-')
 
     return out,res
 
