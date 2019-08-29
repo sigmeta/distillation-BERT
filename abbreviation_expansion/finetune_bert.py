@@ -336,7 +336,10 @@ def result_list(outs, labels, positions, label_list):
                 res.append(1)
             else:
                 res.append(0)
-            out.append(label_list[outputs[i]])
+            if outs[i,outputs[i]]>0.7:
+                out.append(label_list[outputs[i]])
+            else:
+                out.append('-')
 
     return out,res
 
