@@ -36,7 +36,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME
+from pytorch_pretrained_bert.modeling import BertForPolyphonyMulti, BertConfig, WEIGHTS_NAME, CONFIG_NAME, OPTIMIZER_NAME,BertForPolyphonyInference
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
@@ -239,7 +239,12 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     weight = [(max(label_count) / (lc + 100))**1 for lc in label_count]
     print(weight)
     weight = torch.FloatTensor([weight] * 8)
-    return features, masks, weight, attention_mask
+    logit_masks=torch.zeros(len(tokenizer.vocab.items()),len(label_list))
+    vocab_list=list(tokenizer.vocab.keys())
+    for i in range(len(vocab_list)):
+        if vocab_list[i] in label_word:
+            logit_masks[i]=masks[0][label_word[vocab_list[i]][0]]
+    return features, masks, weight, attention_mask, logit_masks
 
 
 def accuracy(out, labels):
@@ -298,6 +303,9 @@ def main():
                         action='store_true',
                         help="Whether to run training.")
     parser.add_argument("--do_eval",
+                        action='store_true',
+                        help="Whether to run eval on the dev set.")
+    parser.add_argument("--do_inference",
                         action='store_true',
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_lower_case",
@@ -510,16 +518,18 @@ def main():
     nb_tr_steps = 0
     tr_loss = 0
     if args.do_train:
-        train_features, masks, weight, hybrid_mask = convert_examples_to_features(
+        train_features, masks, weight, hybrid_mask, logit_masks = convert_examples_to_features(
             train_examples, label_list, args.max_seq_length, tokenizer)
         if args.eval_every_epoch:
             eval_examples = processor.get_dev_examples(args.data_dir)
-            eval_features, masks, weight, hybrid_mask = convert_examples_to_features(
+            eval_features, masks, weight, hybrid_mask, logit_masks = convert_examples_to_features(
                 eval_examples, label_list, args.max_seq_length, tokenizer)
 
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
+        else:
+            masks=masks.to(device)
         if not args.use_weight:
             weight=None
         if args.hybrid_attention:
@@ -693,7 +703,7 @@ def main():
         model.to(device)
 
         eval_examples = processor.get_dev_examples(args.data_dir)
-        eval_features, masks, weight, hybrid_mask = convert_examples_to_features(
+        eval_features, masks, weight, hybrid_mask, logit_masks = convert_examples_to_features(
             eval_examples, label_list, args.max_seq_length, tokenizer)
 
         if args.hybrid_attention:
@@ -777,6 +787,54 @@ def main():
             f.write(json.dumps(char_acc, ensure_ascii=False))
         with open(output_reslist_file, "w") as f:
             f.write(json.dumps(res_list, ensure_ascii=False))
+
+    if args.do_inference and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+        eval_examples = processor.get_dev_examples(args.data_dir)
+        eval_features, masks, weight, hybrid_mask, logit_masks = convert_examples_to_features(
+            eval_examples, label_list, args.max_seq_length, tokenizer)
+        logit_masks=logit_masks.to(device)
+
+        output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
+        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
+        config = BertConfig(output_config_file)
+        model = BertForPolyphonyInference(config, num_labels=num_labels, masks=logit_masks)
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
+
+        chars = [f.char for f in eval_features]
+        print(len(set(chars)), sorted(list(set(chars))))
+        logger.info("***** Running evaluation *****")
+        logger.info("  Num examples = %d", len(eval_examples))
+        logger.info("  Batch size = %d", args.eval_batch_size)
+        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+        all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+        # Run prediction for full data
+        eval_sampler = SequentialSampler(eval_data)
+        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+        model.eval()
+        eval_loss, eval_accuracy = 0, 0
+        nb_eval_steps, nb_eval_examples = 0, 0
+
+        res_list = []
+        # masks = masks.to(device)
+        for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
+            input_ids = input_ids.to(device)
+            input_mask = input_mask.to(device)
+            label_ids = label_ids.to(device)
+            label_poss = label_poss.to(device)
+
+            with torch.no_grad():
+                logits = model(input_ids, input_mask)
+            # print(logits.size())
+            logits = logits.detach().cpu().numpy()
+
+            nb_eval_examples += input_ids.size(0)
+            nb_eval_steps += 1
+            output=logits.argmax(-1)
 
 
 if __name__ == "__main__":

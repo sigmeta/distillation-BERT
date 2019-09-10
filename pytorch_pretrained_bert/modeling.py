@@ -1333,6 +1333,33 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         return loss
 
 
+class BertForPolyphonyInference(BertPreTrainedModel):
+    """BERT model for classification.
+
+    """
+    def __init__(self, config, num_labels, teacher=None, masks=None):
+        super(BertForPolyphonyInference, self).__init__(config)
+        self.num_labels = num_labels
+        print(num_labels)
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.apply(self.init_bert_weights)
+        self.teacher=teacher
+        self.logit_masks=masks
+
+    def forward(self, input_ids, attention_mask=None,):
+        input_ids=input_ids.squeeze()
+        sequence_output, pooled_output = self.bert(input_ids, None, attention_mask, output_all_encoded_layers=False)
+        output = self.dropout(sequence_output)
+        logits = self.classifier(output)
+
+        if self.logit_masks is not None:
+            mask = self.logit_masks.index_select(0, input_ids)
+            logits = logits.masked_fill(mask, value=torch.tensor(float('-inf')))
+        return logits
+
+
 class BertForPolyphonyMultiNgram(BertPreTrainedModel):
     """BERT model for classification.
 
