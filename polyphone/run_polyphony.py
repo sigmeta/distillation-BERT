@@ -835,6 +835,7 @@ def main():
             nb_eval_examples += input_ids.size(0)
             nb_eval_steps += 1
             output=logits.argmax(-1)
+            print(output)
 
 
 if __name__ == "__main__":
