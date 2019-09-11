@@ -807,11 +807,9 @@ def main():
         logger.info("***** Running evaluation *****")
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
-        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.int)
-        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.int)
-        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.int)
-        all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.int)
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_label_ids, all_label_poss)
+        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -822,11 +820,9 @@ def main():
 
         res_list = []
         # masks = masks.to(device)
-        for input_ids, input_mask, label_ids, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
-            input_ids = input_ids.to(device)
-            input_mask = input_mask.to(device)
-            label_ids = label_ids.to(device)
-            label_poss = label_poss.to(device)
+        for input_ids, input_mask in tqdm(eval_dataloader, desc="Evaluating"):
+            input_ids = input_ids[:,:input_mask.sum(-1)].to(device)
+            input_mask = input_mask[:,:input_mask.sum(-1)].to(device)
 
             with torch.no_grad():
                 logits = model(input_ids, input_mask)
