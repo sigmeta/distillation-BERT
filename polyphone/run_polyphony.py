@@ -822,10 +822,10 @@ def main():
         # masks = masks.to(device)
         for input_ids, input_mask in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids[:,:input_mask.sum(-1)].to(device)
-            input_mask = input_mask[:,:input_mask.sum(-1)].to(device)
+            #input_mask = input_mask[:,:input_mask.sum(-1)].to(device)
 
             with torch.no_grad():
-                logits = model(input_ids, input_mask)
+                logits = model(input_ids)
             # print(logits.size())
             logits = logits.detach().cpu().numpy()
 

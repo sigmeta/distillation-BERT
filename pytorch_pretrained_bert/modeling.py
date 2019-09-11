@@ -1348,9 +1348,9 @@ class BertForPolyphonyInference(BertPreTrainedModel):
         self.teacher=teacher
         self.logit_masks=masks
 
-    def forward(self, input_ids, attention_mask=None,):
+    def forward(self, input_ids):
         #input_ids=input_ids.squeeze()
-        sequence_output, pooled_output = self.bert(input_ids, None, attention_mask, output_all_encoded_layers=False)
+        sequence_output, pooled_output = self.bert(input_ids, None, None, output_all_encoded_layers=False)
         output = self.dropout(sequence_output)
         logits = self.classifier(output)
 
