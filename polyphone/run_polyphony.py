@@ -244,6 +244,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     for i in range(len(vocab_list)):
         if vocab_list[i] in label_word:
             logit_masks[i]=masks[0][label_word[vocab_list[i]][0]]
+    logit_masks=logit_masks.byte()
     return features, masks, weight, attention_mask, logit_masks
 
 
