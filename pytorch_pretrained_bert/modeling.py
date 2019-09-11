@@ -1355,7 +1355,7 @@ class BertForPolyphonyInference(BertPreTrainedModel):
         logits = self.classifier(output)
 
         if self.logit_masks is not None:
-            mask = self.logit_masks.index_select(0, input_ids)
+            mask = self.logit_masks.index_select(0, input_ids.squeeze())
             logits = logits.masked_fill(mask, value=torch.tensor(float('-inf')))
         return logits
 
