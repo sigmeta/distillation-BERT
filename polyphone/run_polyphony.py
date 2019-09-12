@@ -843,8 +843,8 @@ def main():
                 if i!=pos:
                     inf_tmp.append('N')
                 else:
-                    inf_tmp.append(label_list[logits[pos]])
-            inflist.append('\t'.join(inf_tmp))
+                    inf_tmp.append(label_list[logits[pos]].split('\t')[-1])
+            inflist.append('\t'.join(inf_tmp[1:-1]))
         output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
         with open(output_reslist_file,'w') as f:
             f.write('\n'.join(inflist))
