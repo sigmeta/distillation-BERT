@@ -809,7 +809,9 @@ def main():
         logger.info("  Batch size = %d", args.eval_batch_size)
         all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
-        eval_data = TensorDataset(all_input_ids, all_input_mask)
+        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+        all_label_poss = torch.tensor([f.label_pos for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask,all_label_poss)
         # Run prediction for full data
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -819,8 +821,9 @@ def main():
         nb_eval_steps, nb_eval_examples = 0, 0
 
         res_list = []
+        inflist=[]
         # masks = masks.to(device)
-        for input_ids, input_mask in tqdm(eval_dataloader, desc="Evaluating"):
+        for input_ids, input_mask, label_poss in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids[:,:input_mask.sum(-1)].to(device)
             #input_mask = input_mask[:,:input_mask.sum(-1)].to(device)
 
@@ -832,7 +835,19 @@ def main():
             nb_eval_examples += input_ids.size(0)
             nb_eval_steps += 1
             #output=logits.argmax(-1)
-            print(logits)
+            #print(logits)
+            logits=logits[0]
+            inf_tmp=[]
+            pos=int(label_poss[0])
+            for i in range(len(logits)):
+                if i!=pos:
+                    inf_tmp.append('N')
+                else:
+                    inf_tmp.append(label_list[logits[pos]])
+            inflist.append('\t'.join(inf_tmp))
+        output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
+        with open(output_reslist_file,'w') as f:
+            f.write('\n'.join(inflist))
 
 
 if __name__ == "__main__":
