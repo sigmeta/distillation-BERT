@@ -840,11 +840,10 @@ def main():
             inf_tmp=[]
             pos=int(label_poss[0])
             for i in range(len(logits)):
-                word,phone=label_list[logits[pos]].split('\t')
-                if tokenizer.vocab[word]==input_ids[0][i]:
-                    inf_tmp.append(phone)
-                else:
+                if i!=pos:
                     inf_tmp.append('N')
+                else:
+                    inf_tmp.append(label_list[logits[pos]].split('\t')[-1])
             inflist.append('\t'.join(inf_tmp[1:-1]))
         output_reslist_file = os.path.join(args.output_dir, args.test_set + "reslist.json")
         with open(output_reslist_file,'w') as f:
