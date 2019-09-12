@@ -840,7 +840,7 @@ def main():
             inf_tmp=[]
             pos=int(label_poss[0])
             for i in range(len(logits)):
-                word,phone=label_list[logits[pos]].split('\t')
+                word,phone=label_list[logits[i]].split('\t')
                 if tokenizer.vocab[word]==input_ids[0][i]:
                     inf_tmp.append(phone)
                 else:
