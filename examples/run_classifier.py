@@ -548,6 +548,9 @@ def main():
         if 'model' in state_dict:
             state_dict = state_dict['model']
         model.load_state_dict(state_dict, strict=False)
+    elif args.config_path:
+        config = BertConfig(args.config_path)
+        model = BertForSequenceClassification(config, num_labels=num_labels)
     else:
         cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(args.local_rank))
         model = BertForSequenceClassification.from_pretrained(args.bert_model,
