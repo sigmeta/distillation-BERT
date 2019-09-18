@@ -687,7 +687,7 @@ def main():
             print(theta_num,theta_sum)
             theta_mean=float(theta_sum)/theta_num
             for k in model.state_dict():
-                model.state_dict()[k]=model.state_dict()[k]+torch.FloatTensor(theta_mean*np.random.normal(0,args.dsigma,model.state_dict()[k].size()))
+                model.state_dict()[k].copy_(model.state_dict()[k]+torch.FloatTensor(theta_mean*np.random.normal(0,args.dsigma,model.state_dict()[k].size())))
 
     model.to(device)
 
