@@ -463,6 +463,9 @@ def main():
                         default="",
                         type=str,
                         help="Where to load the config file when not using pretrained model")
+    parser.add_argument('--dsigma',
+                        type=float, default=0,
+                        help="parameter disturb, sigma for theta=theta+theta_bar*N(0,sigma).")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -691,6 +694,17 @@ def main():
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
+        if args.dsigma:
+            theta_sum=0.0
+            theta_num=0
+            for k in model.state_dict():
+                theta_sum+=model[k].sum()
+                l=1
+                for mlen in list(model[k].size()):
+                    l*=mlen
+                theta_num+=l
+            print(theta_num,theta_sum)
+
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
         rlist=[]
