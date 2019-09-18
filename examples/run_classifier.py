@@ -700,9 +700,9 @@ def main():
             theta_sum=0.0
             theta_num=0
             for k in model.state_dict():
-                theta_sum+=model[k].sum()
+                theta_sum+=model.state_dict()[k].sum()
                 l=1
-                for mlen in list(model[k].size()):
+                for mlen in list(model.state_dict()[k].size()):
                     l*=mlen
                 theta_num+=l
             print(theta_num,theta_sum)
