@@ -687,7 +687,7 @@ def main():
             print(theta_num,theta_sum)
             theta_mean=float(theta_sum)/theta_num
             for k in model.state_dict():
-                model.state_dict()[k]=model.state_dict()[k]+theta_mean*args.dsigma*np.random.randn(model.state_dict()[k].size())
+                model.state_dict()[k]=model.state_dict()[k]+theta_mean*np.random.normal(0,args.dsigma,model.state_dict()[k].size())
 
     model.to(device)
 
