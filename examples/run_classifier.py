@@ -694,6 +694,8 @@ def main():
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
+        print(model)
+        print(model.state_dict())
         if args.dsigma:
             theta_sum=0.0
             theta_num=0
