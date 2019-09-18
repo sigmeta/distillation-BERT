@@ -675,6 +675,20 @@ def main():
         config = BertConfig(output_config_file)
         model = BertForSequenceClassification(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
+        if args.dsigma:
+            theta_sum=0.0
+            theta_num=0
+            for k in model.state_dict():
+                theta_sum+=model.state_dict()[k].sum()
+                l=1
+                for mlen in list(model.state_dict()[k].size()):
+                    l*=mlen
+                theta_num+=l
+            print(theta_num,theta_sum)
+            theta_mean=float(theta_sum)/theta_num
+            for k in model.state_dict():
+                model.state_dict()[k]=model.state_dict()[k]+theta_mean*args.dsigma*np.random.randn(model.state_dict()[k].size())
+
     model.to(device)
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -694,18 +708,9 @@ def main():
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
-        print(model)
-        print(model.state_dict())
-        if args.dsigma:
-            theta_sum=0.0
-            theta_num=0
-            for k in model.state_dict():
-                theta_sum+=model.state_dict()[k].sum()
-                l=1
-                for mlen in list(model.state_dict()[k].size()):
-                    l*=mlen
-                theta_num+=l
-            print(theta_num,theta_sum)
+        #print(model)
+        #print(model.state_dict())
+
 
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
