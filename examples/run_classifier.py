@@ -676,17 +676,17 @@ def main():
         model = BertForSequenceClassification(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
         if args.dsigma:
-            theta_sum=0.0
-            theta_num=0
+
             for k in model.state_dict():
+                theta_sum = 0.0
+                theta_num = 0
                 theta_sum+=model.state_dict()[k].sum()
                 l=1
                 for mlen in list(model.state_dict()[k].size()):
                     l*=mlen
                 theta_num+=l
-            print(theta_num,theta_sum)
-            theta_mean=float(theta_sum)/theta_num
-            for k in model.state_dict():
+                #print(theta_num,theta_sum)
+                theta_mean=float(theta_sum)/theta_num
                 model.state_dict()[k].copy_(model.state_dict()[k]+torch.FloatTensor(theta_mean*np.random.normal(0,args.dsigma,model.state_dict()[k].size())))
 
     model.to(device)
