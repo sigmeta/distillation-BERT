@@ -36,6 +36,7 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
+import time
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -715,6 +716,7 @@ def main():
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
         rlist=[]
+        at=0
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -723,8 +725,12 @@ def main():
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
+
                 tmp_eval_loss = model(input_ids, segment_ids, input_mask, label_ids)
+                ts=time.time()
                 logits = model(input_ids, segment_ids, input_mask)
+                te=time.time()
+                at+=te-ts
 
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
@@ -743,7 +749,8 @@ def main():
         result = {'eval_loss': eval_loss,
                   'eval_accuracy': eval_accuracy,
                   'global_step': global_step,
-                  'loss': loss}
+                  'loss': loss,
+                  'time':at}
 
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
