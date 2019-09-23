@@ -28,6 +28,8 @@ test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/
 train_set=set([p for p in os.listdir(data_path+"Annotation")])
 ime_set=test_set-train_set
 print(train_set)
+print(train_set-test_set)
+print(test_set-train_set)
 assert not train_set-test_set
 
 dct={}
