@@ -227,6 +227,40 @@ class Sst2Processor(DataProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
         return examples
 
+class QqpProcessor(DataProcessor):
+    """Processor for the QQP data set (GLUE version)."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "%s-%s" % (set_type, line[0])
+            try:
+                text_a = line[3]
+                text_b = line[4]
+                label = line[5]
+            except IndexError:
+                continue
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
 
 class QqpProcessor(DataProcessor):
     """Processor for the QQP data set (GLUE version)."""
@@ -648,7 +682,8 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
                 nll_loss = model(input_ids, segment_ids, input_mask, label_ids)
                 logits = model(input_ids, segment_ids, input_mask)
-                gt=F.softmax(teacher_model(input_ids, segment_ids, input_mask))
+                with torch.no_grad():
+                    gt=F.softmax(teacher_model(input_ids, segment_ids, input_mask))
                 kd_loss=-F.log_softmax(logits)*gt
                 kd_loss=kd_loss.mean()
                 nll_loss=nll_loss.mean()

@@ -36,6 +36,7 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
+import time
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -463,6 +464,9 @@ def main():
                         default="",
                         type=str,
                         help="Where to load the config file when not using pretrained model")
+    parser.add_argument('--dsigma',
+                        type=float, default=0,
+                        help="parameter disturb, sigma for theta=theta+theta_bar*N(0,sigma).")
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -548,6 +552,9 @@ def main():
         if 'model' in state_dict:
             state_dict = state_dict['model']
         model.load_state_dict(state_dict, strict=False)
+    elif args.config_path:
+        config = BertConfig(args.config_path)
+        model = BertForSequenceClassification(config, num_labels=num_labels)
     else:
         cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(args.local_rank))
         model = BertForSequenceClassification.from_pretrained(args.bert_model,
@@ -669,6 +676,20 @@ def main():
         config = BertConfig(output_config_file)
         model = BertForSequenceClassification(config, num_labels=num_labels)
         model.load_state_dict(torch.load(output_model_file))
+        if args.dsigma:
+
+            for k in model.state_dict():
+                theta_sum = 0.0
+                theta_num = 0
+                theta_sum+=model.state_dict()[k].sum()
+                l=1
+                for mlen in list(model.state_dict()[k].size()):
+                    l*=mlen
+                theta_num+=l
+                #print(theta_num,theta_sum)
+                theta_mean=float(theta_sum)/theta_num
+                model.state_dict()[k].copy_(model.state_dict()[k]+torch.FloatTensor(theta_mean*np.random.normal(0,args.dsigma,model.state_dict()[k].size())))
+
     model.to(device)
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -688,9 +709,14 @@ def main():
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
+        #print(model)
+        #print(model.state_dict())
+
+
         eval_loss, eval_accuracy = 0, 0
         nb_eval_steps, nb_eval_examples = 0, 0
         rlist=[]
+        at=0
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -699,13 +725,17 @@ def main():
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
+
                 tmp_eval_loss = model(input_ids, segment_ids, input_mask, label_ids)
+                ts=time.time()
                 logits = model(input_ids, segment_ids, input_mask)
+                te=time.time()
+                at+=te-ts
 
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
             tmp_eval_accuracy = accuracy(logits, label_ids)
-            rlist+=logits.tolist()
+            rlist+=logits.argmax(-1).tolist()
 
             eval_loss += tmp_eval_loss.mean().item()
             eval_accuracy += tmp_eval_accuracy
@@ -719,7 +749,8 @@ def main():
         result = {'eval_loss': eval_loss,
                   'eval_accuracy': eval_accuracy,
                   'global_step': global_step,
-                  'loss': loss}
+                  'loss': loss,
+                  'time':at}
 
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
