@@ -544,6 +544,8 @@ def main():
         if args.no_logit_mask:
             print("Remove logit mask")
             masks = None
+        else:
+            masks=masks.to(device)
         if not args.use_weight:
             weight=None
         if args.hybrid_attention:
