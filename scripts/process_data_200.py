@@ -27,9 +27,9 @@ words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/ChitChat")])
 train_set=set([p for p in os.listdir(data_path+"Annotation")])
 ime_set=test_set-train_set
+train_set=train_set&test_set
+test_set=train_set
 print(train_set)
-print(train_set-test_set)
-print(test_set-train_set)
 #assert not train_set-test_set
 
 dct={}
@@ -38,7 +38,7 @@ trc={k:0 for k in test_set}
 
 def get_test(path,test):
     for word in os.listdir(path):
-        if re.search('_.*\.',word).group()[1:-1] not in train_set&test_set:
+        if re.search('_.*\.',word).group()[1:-1] not in train_set:
             continue
         word_now=re.search('_.*\.',word).group()[1:-1]
         print("Test set processing...", word)
@@ -132,7 +132,7 @@ print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
 # train
-for word in sorted(list(train_set&test_set)):
+for word in sorted(list(train_set)):
     print("Train set processing...", word)
     if os.path.exists(data_path+"Annotation/"+word+"/trainingScript"):
         for file in os.listdir(data_path+"Annotation/"+word+"/trainingScript"):
