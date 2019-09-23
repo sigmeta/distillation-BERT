@@ -471,8 +471,8 @@ def main():
         if args.state_dir and os.path.exists(args.state_dir):
             state_dict=torch.load(args.state_dir)
             if isinstance(state_dict,dict) or isinstance(state_dict,collections.OrderedDict):
-                assert 'model' in state_dict
-                state_dict=state_dict['model']
+                if 'model' in state_dict:
+                    state_dict=state_dict['model']
             print("Using my own BERT state dict.")
         elif args.state_dir and not os.path.exists(args.state_dir):
             print("Warning: the state dict does not exist, using the Google pre-trained model instead.")
