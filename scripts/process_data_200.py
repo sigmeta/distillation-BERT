@@ -38,7 +38,7 @@ trc={k:0 for k in test_set}
 
 def get_test(path,test):
     for word in os.listdir(path):
-        if re.search('_.*\.',word).group()[1:-1] not in train_set:
+        if re.search('_.*\.',word).group()[1:-1] not in train_set&test_set:
             continue
         word_now=re.search('_.*\.',word).group()[1:-1]
         print("Test set processing...", word)
@@ -132,7 +132,7 @@ print(len(phones),sorted(list(phones)))
 phones_test=phones.copy()
 
 # train
-for word in sorted(list(train_set)):
+for word in sorted(list(train_set&test_set)):
     print("Train set processing...", word)
     if os.path.exists(data_path+"Annotation/"+word+"/trainingScript"):
         for file in os.listdir(data_path+"Annotation/"+word+"/trainingScript"):
