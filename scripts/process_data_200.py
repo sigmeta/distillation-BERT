@@ -11,7 +11,7 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=Tru
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
-data_path="/blob/xuta/speech/tts/t-hasu/ppdata/Polyphony/data/zh-CN/"
+data_path="/blob/xuta/speech/tts/t-hasu/Polyphony/data/zh-CN/"
 output_path="/blob/xuta/speech/tts/t-hasu/ppdata/data-200-index/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
