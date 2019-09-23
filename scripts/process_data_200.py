@@ -24,7 +24,7 @@ max_length_cut=64
 max_length=126
 words=set()
 words_train=set()
-test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/Story")])
+test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/ChitChat")])
 train_set=set([p for p in os.listdir(data_path+"Annotation")])
 ime_set=test_set-train_set
 print(train_set)
