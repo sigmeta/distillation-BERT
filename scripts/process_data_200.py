@@ -30,7 +30,7 @@ ime_set=test_set-train_set
 print(train_set)
 print(train_set-test_set)
 print(test_set-train_set)
-assert not train_set-test_set
+#assert not train_set-test_set
 
 dct={}
 dup={k:set() for k in test_set}
