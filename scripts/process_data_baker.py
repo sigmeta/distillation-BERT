@@ -110,6 +110,10 @@ def extract_data(path,char,the_list):
             js_data['text'] += w.getAttribute('v')
             if w.getAttribute('v') == char:
                 pho = js_data['char'] + '\t' + w.getAttribute('p')
+            elif len(w.getAttribute('v'))>1 and char in w.getAttribute('v'):
+                for ii,c in enumerate(w.getAttribute('v')):
+                    if c==char:
+                        pho = js_data['char'] + '\t' + w.getAttribute('p').split('-')[ii].strip()
         if pho == '_':  # wrong case
             print(js_data['text'])
             continue
