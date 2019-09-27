@@ -114,10 +114,10 @@ def extract_train(path,char,the_list):
                             pho = c + '\t' + w.getAttribute('p').split('-')[ii].strip()
                             js_data['phone'].append([len(js_data['text']) + ii, pho])
                             phones.add(pho)
-            else:
-                print(w.getAttribute('v'), w.getAttribute('p').split('-'))
-            js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
 
+            js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
+        for po,ph in js_data['phone']:
+            assert js['text'][po]==ph.split()[0]
         if pho == '_':  # wrong case
             #print(js_data['text'])
             continue
@@ -215,7 +215,7 @@ with open(output_path+"/test_chat.json",'w',encoding='utf8') as f:
 
 print(trc)
 info={"words_test":sorted(list(words)),
-      "words_prepared":sorted(list(word2char[w] for w in train_set)),
+      "words_prepared":sorted(list(word2char[w] for w in word2char)),
       #"words_ime":sorted(list(ime_words)),
       "phones":sorted(list(phones)),
       "word2char":word2char,
