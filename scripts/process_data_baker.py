@@ -99,7 +99,6 @@ def extract_train(path,char,the_list):
     sis = collection.getElementsByTagName("si")
     for si in sis:
         #text_now = si.getElementsByTagName("text")[0].childNodes[0].data.strip()
-        trc[word] += 1
         js_data = {}
         js_data['text'] = []
         js_data['position'] = -1
@@ -142,7 +141,6 @@ def extract_test(path,char,the_list):
     sis = collection.getElementsByTagName("si")
     for si in sis:
         #text_now = si.getElementsByTagName("text")[0].childNodes[0].data.strip()
-        trc[word] += 1
         js_data = {}
         js_data['text'] = ""
         js_data['position'] = -1
