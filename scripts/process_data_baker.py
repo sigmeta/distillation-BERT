@@ -117,7 +117,7 @@ def extract_train(path,char,the_list):
 
             js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
         for po,ph in js_data['phone']:
-            assert js['text'][po]==ph.split()[0]
+            assert js_data['text'][po]==ph.split()[0]
         if pho == '_':  # wrong case
             #print(js_data['text'])
             continue
