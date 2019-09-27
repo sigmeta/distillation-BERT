@@ -194,7 +194,7 @@ def get_data(path, word):
 
 
 # train
-for word in sorted(list(train_set)):
+for word in sorted(list(train_set|test_set)):
     print("Processing...", word)
     get_data(os.path.join(data_path,word),word)
 print(len(phones),sorted(list(phones)))
