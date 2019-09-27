@@ -105,23 +105,9 @@ def extract_train(path,char,the_list):
         js_data['char'] = char
         js_data['phone']=[]
         pho = '_'
-
         # get the pronunciation
         for i, w in enumerate(si.getElementsByTagName("w")):
-            js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
-            if w.getAttribute('v') == char:
-                if len(js_data['text']) - 1 < 126:
-                    pho = js_data['char'] + '\t' + w.getAttribute('p')
-                    js_data['phone'].append([len(js_data['text'])-1,pho])
-                    phones.add(pho)
-            elif len(w.getAttribute('v'))>1 and char in w.getAttribute('v'):
-                for ii,c in enumerate(w.getAttribute('v')):
-                    if c==char:
-                        if len(js_data['text']) + ii - 1 < 126:
-                            pho = js_data['char'] + '\t' + w.getAttribute('p').split('-')[ii].strip()
-                            js_data['phone'].append([len(js_data['text'])+ii - 1, pho])
-                            phones.add(pho)
-            else:
+            if len(w.getAttribute('v'))==len(w.getAttribute('p').split('-')):
                 for ii,c in enumerate(w.getAttribute('v')):
                     if c in no_train:
                         if len(js_data['text']) + ii - 1<126:
@@ -129,11 +115,11 @@ def extract_train(path,char,the_list):
                             js_data['phone'].append([len(js_data['text']) + ii - 1, pho])
                             phones.add(pho)
         if pho == '_':  # wrong case
-            print(js_data['text'])
+            #print(js_data['text'])
             continue
         the_list.append(js_data)
 
-def extract_test(path,char,the_list):
+def extract_data(path,char,the_list):
     # extract data from the file
     # the_list is the list we want to put the data in. [train, test_story, test_news, test_chat]
     DOMTree = xml.dom.minidom.parse(path)
@@ -157,7 +143,7 @@ def extract_test(path,char,the_list):
                     if c==char:
                         pho = js_data['char'] + '\t' + w.getAttribute('p').split('-')[ii].strip()
         if pho == '_':  # wrong case
-            #print(js_data['text'])
+            print(js_data['text'])
             continue
         # get the position
         js_data['text'] = tokenizer.tokenize(js_data['text'])
@@ -186,14 +172,17 @@ def get_data(path, word):
     for f in os.listdir(path):
         print("Processing...",f)
         if f.split('.')[0]=='training':
-            extract_train(os.path.join(path,f),char,train)
+            if char!='_':
+                extract_data(os.path.join(path,f),char,train)
+            extract_train(os.path.join(path, f), char, train)
         elif char in test_set:
             if f.split('.')[1]=='Story':
-                extract_test(os.path.join(path, f), char, test_story)
+                extract_data(os.path.join(path, f), char, test_story)
             elif f.split('.')[1]=='News':
-                extract_test(os.path.join(path, f), char, test_news)
+                extract_data(os.path.join(path, f), char, test_news)
             else:
-                extract_test(os.path.join(path, f), char, test_chat)
+                extract_data(os.path.join(path, f), char, test_chat)
+
 
 
 
