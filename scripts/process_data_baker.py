@@ -37,8 +37,8 @@ word2char={'ai2_ai1': '挨', 'ba3_ba4': '把', 'bao4_pu4': '曝', 'bei4_bei1': '
            'liao2_liao1_liao4': '撩', 'lie3_lie1': '咧', 'lin2_lin1_lin4': '淋', 'liu4_liu1': '溜',
            'long2_long3': '笼', 'lou3_lou1_lou2': '搂', 'lu4_liu4': '陆', 'lu4_lou4': '露', 'lv4_shuai4': '率',
            'luo4_lao4_la4_luo1': '落', 'meng2_meng3_meng1': '蒙', 'mo2_mo4': '磨', 'mo2_mu2': '模', 'mo3_mo4_ma1': '抹',
-           'mo4_mei2': '没','na3_ne2_nei3_nai3':'哪', 'nan4_nan2': '难', 'nian2_zhan1': '粘', 'ning3_ning4_ning2': '拧',
-           'ning4_ning2': '宁', 'pa2_ba1': '扒', 'pao4_pao1': '泡', 'pao4_pao2_bao1': '炮', 'pen4_pen1': '喷', 'pi1_pi3': '劈',
+           'mo4_mei2': '没', 'nan4_nan2': '难', 'nian2_zhan1': '粘', 'ning3_ning4_ning2': '拧', 'ning4_ning2': '宁',
+           'pa2_ba1': '扒', 'pao4_pao1': '泡', 'pao4_pao2_bao1': '炮', 'pen4_pen1': '喷', 'pi1_pi3': '劈',
            'pian4_pian1': '片', 'piao1_piao4_piao3': '漂', 'pu4_bao4': '暴', 'pu4_pu1': '铺', 'qi2_ji1': '奇',
            'qiang2_jiang4_qiang3': '强', 'qiao4_qiao2': '翘', 'qie4_qie1': '切', 'qu3_qu1': '曲',
            'quan1_juan4_juan1': '圈', 'que4_qiao3_qiao1': '雀', 'sa3_sa1': '撒', 'sai4_se4_sai1': '塞',
@@ -73,24 +73,68 @@ max_length=126 # max length is 128 with [CLS] and [SEP], so we set 126 here.
 words=set()
 words_train=set()
 
+
 trl=[]
 p2=os.listdir(data_path)
 for p in p2:
     fs=[]
     for f in os.listdir(os.path.join(data_path,p)):
         fs.append(f.split('.')[0])
-    if 'training' in fs and 'testing' in fs:
+    if 'training' in fs:
         trl.append(p)
-test_set=set(trl)&word2char.keys()
-train_set=test_set
-
+test_set=word2char.keys()
+train_set=set(trl)
+no_train=set([word2char[k] for k in word2char.keys()-train_set])
 print("train set", train_set)
 #assert not train_set-test_set
 
 dup={k:set() for k in test_set}
 trc={k:0 for k in test_set}
 
-def extract_data(path,char,the_list):
+def extract_train(path,char,the_list):
+    # extract data from the file
+    # the_list is the list we want to put the data in. [train, test_story, test_news, test_chat]
+    DOMTree = xml.dom.minidom.parse(path)
+    collection = DOMTree.documentElement
+    sis = collection.getElementsByTagName("si")
+    for si in sis:
+        #text_now = si.getElementsByTagName("text")[0].childNodes[0].data.strip()
+        trc[word] += 1
+        js_data = {}
+        js_data['text'] = []
+        js_data['position'] = -1
+        js_data['char'] = char
+        js_data['phone']=[]
+        pho = '_'
+
+        # get the pronunciation
+        for i, w in enumerate(si.getElementsByTagName("w")):
+            js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
+            if w.getAttribute('v') == char:
+                if len(js_data['text']) + ii - 1 < 126:
+                    pho = js_data['char'] + '\t' + w.getAttribute('p')
+                    js_data['phone'].append([len(js_data['text'])-1,pho])
+                    phones.add(pho)
+            elif len(w.getAttribute('v'))>1 and char in w.getAttribute('v'):
+                for ii,c in enumerate(w.getAttribute('v')):
+                    if c==char:
+                        if len(js_data['text']) + ii - 1 < 126:
+                            pho = js_data['char'] + '\t' + w.getAttribute('p').split('-')[ii].strip()
+                            js_data['phone'].append([len(js_data['text'])+ii - 1, pho])
+                            phones.add(pho)
+            else:
+                for ii,c in enumerate(w.getAttribute('v')):
+                    if c in no_train:
+                        if len(js_data['text']) + ii - 1<126:
+                            pho = c + '\t' + w.getAttribute('p').split('-')[ii].strip()
+                            js_data['phone'].append([len(js_data['text']) + ii - 1, pho])
+                            phones.add(pho)
+        if pho == '_':  # wrong case
+            print(js_data['text'])
+            continue
+        the_list.append(js_data)
+
+def extract_test(path,char,the_list):
     # extract data from the file
     # the_list is the list we want to put the data in. [train, test_story, test_news, test_chat]
     DOMTree = xml.dom.minidom.parse(path)
@@ -134,22 +178,24 @@ def extract_data(path,char,the_list):
         # js_data['text'] = ' '.join(js_data['text'])
         the_list.append(js_data)
 
-
 def get_data(path, word):
     # get data from the path of a character
-    char = word2char[word]
+    if word in word2char:
+        char = word2char[word]
+    else:
+        char='_'
     words_train.add(char)
     for f in os.listdir(path):
         print("Processing...",f)
         if f.split('.')[0]=='training':
-            extract_data(os.path.join(path,f),char,train)
-        else:
+            extract_train(os.path.join(path,f),char,train)
+        elif char in test_set:
             if f.split('.')[1]=='Story':
-                extract_data(os.path.join(path, f), char, test_story)
+                extract_test(os.path.join(path, f), char, test_story)
             elif f.split('.')[1]=='News':
-                extract_data(os.path.join(path, f), char, test_news)
+                extract_test(os.path.join(path, f), char, test_news)
             else:
-                extract_data(os.path.join(path, f), char, test_chat)
+                extract_test(os.path.join(path, f), char, test_chat)
 
 
 
