@@ -110,7 +110,7 @@ def extract_train(path,char,the_list):
         for i, w in enumerate(si.getElementsByTagName("w")):
             js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
             if w.getAttribute('v') == char:
-                if len(js_data['text']) + ii - 1 < 126:
+                if len(js_data['text']) - 1 < 126:
                     pho = js_data['char'] + '\t' + w.getAttribute('p')
                     js_data['phone'].append([len(js_data['text'])-1,pho])
                     phones.add(pho)
@@ -157,7 +157,7 @@ def extract_test(path,char,the_list):
                     if c==char:
                         pho = js_data['char'] + '\t' + w.getAttribute('p').split('-')[ii].strip()
         if pho == '_':  # wrong case
-            print(js_data['text'])
+            #print(js_data['text'])
             continue
         # get the position
         js_data['text'] = tokenizer.tokenize(js_data['text'])
