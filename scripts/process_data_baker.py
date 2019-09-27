@@ -110,10 +110,14 @@ def extract_train(path,char,the_list):
             if len(w.getAttribute('v'))==len(w.getAttribute('p').split('-')):
                 for ii,c in enumerate(w.getAttribute('v')):
                     if c in no_train:
-                        if len(js_data['text']) + ii - 1<126:
+                        if len(js_data['text']) + ii<126:
                             pho = c + '\t' + w.getAttribute('p').split('-')[ii].strip()
-                            js_data['phone'].append([len(js_data['text']) + ii - 1, pho])
+                            js_data['phone'].append([len(js_data['text']) + ii, pho])
                             phones.add(pho)
+            else:
+                print(w.getAttribute('v'), w.getAttribute('p').split('-'))
+            js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
+
         if pho == '_':  # wrong case
             #print(js_data['text'])
             continue
@@ -172,8 +176,8 @@ def get_data(path, word):
     for f in os.listdir(path):
         print("Processing...",f)
         if f.split('.')[0]=='training':
-            if char!='_':
-                extract_data(os.path.join(path,f),char,train)
+            #if char!='_':
+                #extract_data(os.path.join(path,f),char,train)
             extract_train(os.path.join(path, f), char, train)
         elif char in test_set:
             if f.split('.')[1]=='Story':
