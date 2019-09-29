@@ -1316,7 +1316,7 @@ class BertForPolyphonyMulti(BertPreTrainedModel):
         elif cal_loss and targets is not None:
             loss_fct=self.compute_loss
             targets=functional.softmax(targets,dim=-1)
-            kd_loss=loss_fct(logits,targets)
+            kd_loss=loss_fct(logits.view(-1, self.num_labels),targets)
             loss_fct = CrossEntropyLoss(ignore_index=-1, weight=weight)
             #nll_loss = loss_fct(logits, labels)
             nll_loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
