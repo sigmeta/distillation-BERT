@@ -625,6 +625,15 @@ def main():
                     optimizer.zero_grad()
                     global_step += 1
 
+            model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
+            output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME + '_' + str(ep))
+            torch.save(model_to_save.state_dict(), output_model_file)
+            output_optimizer_file = os.path.join(args.output_dir, OPTIMIZER_NAME + '_' + str(ep))
+            torch.save(optimizer.state_dict(), output_optimizer_file)
+            output_config_file = os.path.join(args.output_dir, CONFIG_NAME + '_' + str(ep))
+            with open(output_config_file, 'w') as f:
+                f.write(model_to_save.config.to_json_string())
+
     if args.do_train:
         # Save a trained model and the associated configuration
         model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
