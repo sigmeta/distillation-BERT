@@ -11,7 +11,7 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-chinese", do_lower_case=Tru
 stop={"'",'"',',','.','?','/','[',']','{','}','+','=','*','&','(',')','，','。','？',
       '“','”','’','‘','、','？','！','【','】','《','》','（','）','・','&quot;','——',
       '-','———',':','：','!','@','#','$','%','&',';','……','；','—','±'}
-data_path="/blob/xuta/speech/tts/t-hasu/ppdata/Polyphony/data/zh-CN/"
+data_path="/blob/xuta/speech/tts/t-hasu/Polyphony/data/zh-CN/"
 output_path="/blob/xuta/speech/tts/t-hasu/ppdata/data-200-index/"
 if not os.path.exists(output_path):
     os.mkdir(output_path)
@@ -27,7 +27,7 @@ words_train=set()
 test_set=set([p[11:-4] for p in os.listdir(data_path+"TestCase/BeforeToneChange/Story")])
 train_set=set([p for p in os.listdir(data_path+"Annotation") if os.path.exists(data_path+"Annotation/"+p+"/trainingScript")])
 ime_set=test_set-train_set
-print(train_set)
+print(len(train_set),train_set)
 assert not train_set-test_set
 
 dct={}

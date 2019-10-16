@@ -75,11 +75,13 @@ words_train=set()
 
 
 trl=[]
+tra=[]
 p2=os.listdir(data_path)
 for p in p2:
     fs=[]
     for f in os.listdir(os.path.join(data_path,p)):
         fs.append(f.split('.')[0])
+    tra.append(p)
     if 'training' in fs:
         trl.append(p)
 test_set=word2char.keys()
@@ -89,7 +91,7 @@ print("train set", train_set)
 #assert not train_set-test_set
 
 dup={k:set() for k in test_set}
-trc={k:0 for k in test_set}
+trc={word2char[k]:0 for k in word2char}
 
 def extract_train(path,char,the_list):
     # extract data from the file
@@ -110,14 +112,16 @@ def extract_train(path,char,the_list):
             if len(w.getAttribute('v'))==len(w.getAttribute('p').split('-')):
                 for ii,c in enumerate(w.getAttribute('v')):
                     if c in no_train:
-                        if len(js_data['text']) + ii<126:
+                        if len(js_data['text']) + ii<126 and trc[c]<10000:
                             pho = c + '\t' + w.getAttribute('p').split('-')[ii].strip()
                             js_data['phone'].append([len(js_data['text']) + ii, pho])
                             phones.add(pho)
+                            trc[c]+=1 
 
             js_data['text'] += tokenizer.tokenize(w.getAttribute('v'))
-        for po,ph in js_data['phone']:
-            assert js_data['text'][po]==ph.split()[0]
+        for p in js_data['phone']:
+            if js_data['text'][p[0]]!=p[1][0]:
+                print(p);js_data['phone'].remove(p);trc[p[1][0]]-=1
         if pho == '_':  # wrong case
             #print(js_data['text'])
             continue
@@ -174,12 +178,12 @@ def get_data(path, word):
         char='_'
     words_train.add(char)
     for f in os.listdir(path):
-        print("Processing...",f)
+        #print("Processing...",f)
         if f.split('.')[0]=='training':
-            #if char!='_':
-                #extract_data(os.path.join(path,f),char,train)
+            if char!='_':
+                extract_data(os.path.join(path,f),char,train)
             extract_train(os.path.join(path, f), char, train)
-        elif char in test_set:
+        elif word in test_set:
             if f.split('.')[1]=='Story':
                 extract_data(os.path.join(path, f), char, test_story)
             elif f.split('.')[1]=='News':
@@ -194,7 +198,7 @@ def get_data(path, word):
 
 
 # train
-for word in sorted(list(train_set|test_set)):
+for word in sorted(tra):
     print("Processing...", word)
     get_data(os.path.join(data_path,word),word)
 print(len(phones),sorted(list(phones)))
