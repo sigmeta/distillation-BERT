@@ -1,6 +1,6 @@
 # PyTorch Pretrained BERT: The Big & Extending Repository of pretrained Transformers
 
-[![CircleCI](https://circleci.com/gh/huggingface/pytorch-pretrained-BERT.svg?style=svg)](https://circleci.com/gh/huggingface/pytorch-pretrained-BERT)
+This code libraby is changed from https://github.com/huggingface/pytorch-pretrained-BERT, which is renamed as https://github.com/huggingface/transformers now.
 
 This repository contains op-for-op PyTorch reimplementations, pre-trained models and fine-tuning examples for:
 
@@ -25,6 +25,22 @@ This PyTorch implementation of Transformer-XL is an adaptation of the original [
 **OpenAI GPT-2** was released together with the paper [Language Models are Unsupervised Multitask Learners](https://blog.openai.com/better-language-models/) by Alec Radford*, Jeffrey Wu*, Rewon Child, David Luan, Dario Amodei** and Ilya Sutskever**.
 This PyTorch implementation of OpenAI GPT-2 is an adaptation of the [OpenAI's implementation](https://github.com/openai/gpt-2) and is provided with [OpenAI's pre-trained model](https://github.com/openai/gpt-2) and a command-line interface that was used to convert the TensorFlow checkpoint in PyTorch.
 
+## Citation
+
+Knowledge Distillation from Bert in Pre-Training and Fine-Tuning for Polyphone Disambiguation
+
+Accepted by 2019 IEEE Automatic Speech Recognition and Understanding Workshop (ASRU).
+
+```
+@inproceedings{sun2019knowledge,
+  title={Knowledge Distillation from Bert in Pre-Training and Fine-Tuning for Polyphone Disambiguation},
+  author={Sun, Hao and Tan, Xu and Gan, Jun-Wei and Zhao, Sheng and Han, Dongxu and Liu, Hongzhi and Qin, Tao and Liu, Tie-Yan},
+  booktitle={2019 IEEE Automatic Speech Recognition and Understanding Workshop (ASRU)},
+  pages={168--175},
+  year={2019},
+  organization={IEEE}
+}
+```
 
 ## Content
 
